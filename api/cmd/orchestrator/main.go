@@ -46,21 +46,20 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 			}
 		}
 
-	case strings.HasPrefix(path, "/lists"):
-		// Handle /lists routes
+	case strings.HasPrefix(path, "/profile"):
 		switch method {
 		case "GET":
-			response = handlers.GetUserLists(request)
-		case "POST":
-			response = handlers.CreateUserList(request)
-		// Add others like PUT, DELETE if you need them for /lists
+			response = handlers.GetProfile(request)
+		case "POST", "PUT":
+			response = handlers.CreateOrUpdateProfile(request)
+		case "DELETE":
+			response = handlers.DeleteProfile(request)
 		default:
 			response = events.APIGatewayProxyResponse{
 				StatusCode: 405,
-				Body:       "Method Not Allowed for /lists",
+				Body:       "Method Not Allowed for /profile",
 			}
 		}
-
 	default:
 		response = events.APIGatewayProxyResponse{
 			StatusCode: 404,

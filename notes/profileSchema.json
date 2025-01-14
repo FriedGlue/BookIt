@@ -1,0 +1,240 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/schemas/profile.schema.json",
+  "title": "Profile",
+  "description": "A user profile containing personal information, reading status, lists, and reading logs.",
+  "type": "object",
+  "properties": {
+    "_id": {
+      "type": "string",
+      "description": "The unique user ID (e.g., Cognito sub)."
+    },
+    "profileInformation": {
+      "$ref": "#/$defs/ProfileInformation"
+    },
+    "currentlyReading": {
+      "type": "array",
+      "description": "List of books the user is currently reading.",
+      "items": {
+        "$ref": "#/$defs/ReadingItem"
+      }
+    },
+    "lists": {
+      "$ref": "#/$defs/UserLists"
+    },
+    "readingLog": {
+      "type": "array",
+      "description": "A history of the user's reading activity over time.",
+      "items": {
+        "$ref": "#/$defs/ReadingLogItem"
+      }
+    }
+  },
+  "required": ["_id", "profileInformation"],
+  "$defs": {
+    "ProfileInformation": {
+      "title": "ProfileInformation",
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "description": "Display name or username for the user."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email address for the user."
+        }
+      },
+      "required": ["username", "email"]
+    },
+
+    "ReadingItem": {
+      "title": "ReadingItem",
+      "type": "object",
+      "properties": {
+        "Book": {
+          "$ref": "#/$defs/Book"
+        }
+      },
+      "required": ["Book"]
+    },
+
+    "Book": {
+      "title": "Book",
+      "type": "object",
+      "properties": {
+        "bookId": {
+          "type": "string",
+          "description": "Unique ID for the book."
+        },
+        "isbn": {
+          "type": "string",
+          "description": "ISBN of the book (optional)."
+        },
+        "title": {
+          "type": "string"
+        },
+        "coverImage": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to the book cover image."
+        },
+        "progress": {
+          "$ref": "#/$defs/ReadingProgress"
+        }
+      },
+      "required": ["bookId"]
+    },
+
+    "ReadingProgress": {
+      "title": "ReadingProgress",
+      "type": "object",
+      "properties": {
+        "lastPageRead": {
+          "type": "integer"
+        },
+        "percentage": {
+          "type": "number"
+        },
+        "startedDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "lastUpdated": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+
+    "UserLists": {
+      "title": "UserLists",
+      "type": "object",
+      "properties": {
+        "toBeRead": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ToBeReadItem"
+          }
+        },
+        "read": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ReadItem"
+          }
+        },
+        "customLists": {
+          "type": "object",
+          "description": "A map of listName -> array of books in that custom list.",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/CustomListItem"
+            }
+          }
+        }
+      }
+    },
+
+    "ToBeReadItem": {
+      "title": "ToBeReadItem",
+      "type": "object",
+      "properties": {
+        "bookId": {
+          "type": "string"
+        },
+        "thumbnail": {
+          "type": "string",
+          "format": "uri"
+        },
+        "addedDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "order": {
+          "type": "integer"
+        }
+      },
+      "required": ["bookId"]
+    },
+
+    "ReadItem": {
+      "title": "ReadItem",
+      "type": "object",
+      "properties": {
+        "bookId": {
+          "type": "string"
+        },
+        "completedDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "rating": {
+          "type": "integer"
+        },
+        "order": {
+          "type": "integer"
+        },
+        "review": {
+          "type": "string"
+        }
+      },
+      "required": ["bookId"]
+    },
+
+    "CustomListItem": {
+      "title": "CustomListItem",
+      "type": "object",
+      "properties": {
+        "bookId": {
+          "type": "string"
+        },
+        "thumbnail": {
+          "type": "string",
+          "format": "uri"
+        },
+        "addedDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "order": {
+          "type": "integer"
+        }
+      },
+      "required": ["bookId"]
+    },
+
+    "ReadingLogItem": {
+      "title": "ReadingLogItem",
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date of this reading log entry.",
+          "format": "date-time"
+        },
+        "bookId": {
+          "type": "string"
+        },
+        "bookThumbnail": {
+          "type": "string",
+          "format": "uri"
+        },
+        "pagesRead": {
+          "type": "integer"
+        },
+        "timeSpentMinutes": {
+          "type": "integer"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "required": ["date", "bookId"]
+    }
+  }
+}

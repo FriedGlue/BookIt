@@ -49,31 +49,27 @@ Resources:
         WriteCapacityUnits: 5
 
   #####################################
-  # DynamoDB Table: "UserLists"  
+  # DynamoDB Table: "Profiles"
   #####################################
-  UserListsTable:
+  ProfilesTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: UserLists
+      TableName: Profiles
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-        - AttributeName: userId
-          AttributeType: S
-        - AttributeName: listName
+        - AttributeName: _id
           AttributeType: S
       KeySchema:
-        - AttributeName: userId
+        - AttributeName: _id
           KeyType: HASH
-        - AttributeName: listName
-          KeyType: RANGE
 
   #####################################
-  # SAM API: "BooksApi"  
+  # SAM API: "BookitApi"  
   #####################################
-  BooksApi:
+  BookitApi:
     Type: AWS::Serverless::Api
     Properties:
-      Name: BooksApi
+      Name: BookitApi
       StageName: Dev
       EndpointConfiguration: REGIONAL
       Cors:
@@ -89,18 +85,18 @@ Resources:
               Header: Authorization
 
   #####################################
-  # Lambda Function: "Orchestrator"  
+  # Lambda Function: "MainOrchestrator"  
   #####################################
   OrchestratorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: Orchestrator 
+      FunctionName: MainOrchestrator 
       Runtime: provided.al2
       Handler: main
       CodeUri:  ./cmd/orchestrator 
       Environment:
         Variables:
-          TABLE_NAME: !Ref BooksTable
+          PROFILES_TABLE_NAME: !Ref ProfilesTable
 
       # DynamoDB Policies 
       Policies:
@@ -126,22 +122,22 @@ Resources:
               - dynamodb:UpdateItem
               - dynamodb:DeleteItem
               - dynamodb:Query
-            Resource: !GetAtt UserListsTable.Arn
+            Resource: !GetAtt ProfilesTable.Arn
 
       Events:
 
         # Books routes
-        BooksApiEvent:
+        BookitApiEvent:
           Type: Api
           Properties:
-            RestApiId: !Ref BooksApi
+            RestApiId: !Ref BookitApi
             Path: /books
             Method: ANY
 
-        BooksApiEventWithISBN:
+        BookitApiEventWithISBN:
           Type: Api
           Properties:
-            RestApiId: !Ref BooksApi
+            RestApiId: !Ref BookitApi
             Path: /books/{isbn}
             Method: ANY
 
@@ -151,31 +147,31 @@ Resources:
           Properties:
             Path: /lists
             Method: GET
-            RestApiId: !Ref BooksApi  
+            RestApiId: !Ref BookitApi  
         GetOneListEvent:
           Type: Api
           Properties:
             Path: /lists/{listName}
             Method: GET
-            RestApiId: !Ref BooksApi
+            RestApiId: !Ref BookitApi
         CreateListEvent:
           Type: Api
           Properties:
             Path: /lists/{listName}
             Method: POST
-            RestApiId: !Ref BooksApi
+            RestApiId: !Ref BookitApi
         UpdateListEvent:
           Type: Api
           Properties:
             Path: /lists/{listName}
             Method: PUT
-            RestApiId: !Ref BooksApi
+            RestApiId: !Ref BookitApi
         DeleteListEvent:
           Type: Api
           Properties:
             Path: /lists/{listName}
             Method: DELETE
-            RestApiId: !Ref BooksApi
+            RestApiId: !Ref BookitApi
 
   #####################################
   # Lambda Function: "Authentication"  
@@ -192,38 +188,68 @@ Resources:
           USER_POOL_ID: !Ref MyUserPool
           USER_POOL_CLIENT_ID: !Ref MyUserPoolClient
 
+      # For these auth endpoints, override the default authorizer to "NONE"
       Events:
-        # Authentication routes
+        PreflightSignUpRoute:
+          Type: Api
+          Properties:
+            Path: /auth/signup
+            Method: OPTIONS
+            RestApiId: !Ref BookitApi
+            Auth:
+              Authorizer: NONE
+
         SignUpRoute:
           Type: Api
           Properties:
             Path: /auth/signup
             Method: POST
-            RestApiId: !Ref BooksApi
+            RestApiId: !Ref BookitApi
+            Auth:
+              Authorizer: NONE   
+
+        PreflightConfirmRoute:
+          Type: Api
+          Properties:
+            Path: /auth/confirm
+            Method: OPTIONS
+            RestApiId: !Ref BookitApi
+            Auth:
+              Authorizer: NONE
+
         ConfirmRoute:
           Type: Api
           Properties:
             Path: /auth/confirm
             Method: POST
-            RestApiId: !Ref BooksApi
+            RestApiId: !Ref BookitApi
+            Auth:
+              Authorizer: NONE   
+
         SignInRoute:
           Type: Api
           Properties:
             Path: /auth/signin
             Method: POST
-            RestApiId: !Ref BooksApi
+            RestApiId: !Ref BookitApi
+            Auth:
+              Authorizer: NONE   
 Outputs:
   ApiUrl:
     Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${BooksApi}.execute-api.${AWS::Region}.amazonaws.com/Dev/books"
+    Value: !Sub "https://${BookitApi}.execute-api.${AWS::Region}.amazonaws.com/Dev/books"
 
   BooksTableName:
     Description: "Name of the DynamoDB Books table"
     Value: !Ref BooksTable
+    
+  ProfilesTableName:
+    Description: "Name of the DynamoDB Profiles table"
+    Value: !Ref BooksTable
 
-  BooksFunctionName:
+  OrchestratorFunctionName:
     Description: "Name of the Books Lambda function"
-    Value: !Ref BooksFunction
+    Value: !Ref OrchestratorFunction
 
   UserPoolID:
     Description: "Cognito User Pool ID"
