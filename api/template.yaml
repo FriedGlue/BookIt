@@ -1,0 +1,234 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: >
+  AWS SAM template to create a Books DynamoDB table, a Go Lambda function,
+  and an API Gateway endpoint for managing books,
+  plus Cognito-based authentication and "UserLists" functionality.
+
+Globals:
+  Function:
+    Timeout: 10         
+    MemorySize: 128     
+
+Resources:
+  #####################################
+  # Authentication resources
+  #####################################
+
+  # Cognito User Pool
+  MyUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: MyUserPool
+      UsernameAttributes: ["email"]
+
+  MyUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref MyUserPool
+      ClientName: MyUserPoolClient
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+
+  #####################################
+  # DynamoDB Table: "Books"  
+  #####################################
+  BooksTable:
+    Type: AWS::Serverless::SimpleTable
+    Properties:
+      TableName: Books
+      PrimaryKey:
+        Name: isbn
+        Type: String
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  #####################################
+  # DynamoDB Table: "UserLists"  
+  #####################################
+  UserListsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: UserLists
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: listName
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: listName
+          KeyType: RANGE
+
+  #####################################
+  # SAM API: "BooksApi"  
+  #####################################
+  BooksApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: BooksApi
+      StageName: Dev
+      EndpointConfiguration: REGIONAL
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization'"
+        AllowOrigin: "'*'"
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt MyUserPool.Arn
+            Identity:
+              Header: Authorization
+
+  #####################################
+  # Lambda Function: "Orchestrator"  
+  #####################################
+  OrchestratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: Orchestrator 
+      Runtime: provided.al2
+      Handler: main
+      CodeUri:  ./cmd/orchestrator 
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref BooksTable
+
+      # DynamoDB Policies 
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action:
+              - dynamodb:Scan
+              - dynamodb:BatchGetItem
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:Query
+            Resource: !GetAtt BooksTable.Arn
+
+        - Statement:
+            Effect: Allow
+            Action:
+              - dynamodb:Scan
+              - dynamodb:BatchGetItem
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:Query
+            Resource: !GetAtt UserListsTable.Arn
+
+      Events:
+
+        # Books routes
+        BooksApiEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BooksApi
+            Path: /books
+            Method: ANY
+
+        BooksApiEventWithISBN:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BooksApi
+            Path: /books/{isbn}
+            Method: ANY
+
+        # User Lists routes
+        GetListsEvent:
+          Type: Api
+          Properties:
+            Path: /lists
+            Method: GET
+            RestApiId: !Ref BooksApi  
+        GetOneListEvent:
+          Type: Api
+          Properties:
+            Path: /lists/{listName}
+            Method: GET
+            RestApiId: !Ref BooksApi
+        CreateListEvent:
+          Type: Api
+          Properties:
+            Path: /lists/{listName}
+            Method: POST
+            RestApiId: !Ref BooksApi
+        UpdateListEvent:
+          Type: Api
+          Properties:
+            Path: /lists/{listName}
+            Method: PUT
+            RestApiId: !Ref BooksApi
+        DeleteListEvent:
+          Type: Api
+          Properties:
+            Path: /lists/{listName}
+            Method: DELETE
+            RestApiId: !Ref BooksApi
+
+  #####################################
+  # Lambda Function: "Authentication"  
+  #####################################
+  AuthenticationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: Authentication 
+      Runtime: provided.al2
+      Handler: main
+      CodeUri: ./cmd/auth
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref MyUserPool
+          USER_POOL_CLIENT_ID: !Ref MyUserPoolClient
+
+      Events:
+        # Authentication routes
+        SignUpRoute:
+          Type: Api
+          Properties:
+            Path: /auth/signup
+            Method: POST
+            RestApiId: !Ref BooksApi
+        ConfirmRoute:
+          Type: Api
+          Properties:
+            Path: /auth/confirm
+            Method: POST
+            RestApiId: !Ref BooksApi
+        SignInRoute:
+          Type: Api
+          Properties:
+            Path: /auth/signin
+            Method: POST
+            RestApiId: !Ref BooksApi
+Outputs:
+  ApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${BooksApi}.execute-api.${AWS::Region}.amazonaws.com/Dev/books"
+
+  BooksTableName:
+    Description: "Name of the DynamoDB Books table"
+    Value: !Ref BooksTable
+
+  BooksFunctionName:
+    Description: "Name of the Books Lambda function"
+    Value: !Ref BooksFunction
+
+  UserPoolID:
+    Description: "Cognito User Pool ID"
+    Value: !Ref MyUserPool
+
+  UserPoolClientID:
+    Description: "Cognito User Pool Client ID"
+    Value: !Ref MyUserPoolClient
