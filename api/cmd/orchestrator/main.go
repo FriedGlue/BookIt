@@ -46,7 +46,26 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 			}
 		}
 
+	case strings.HasPrefix(path, "/profile/currently-reading"):
+		// Handle /profile/currently-reading routes
+		switch method {
+		case "GET":
+			response = handlers.GetCurrentlyReading(request)
+		case "POST":
+			response = handlers.AddToCurrentlyReading(request)
+		case "PUT":
+			response = handlers.UpdateCurrentlyReading(request)
+		case "DELETE":
+			response = handlers.RemoveFromCurrentlyReading(request)
+		default:
+			response = events.APIGatewayProxyResponse{
+				StatusCode: 405,
+				Body:       "Method Not Allowed for /profile/currently-reading",
+			}
+		}
+
 	case strings.HasPrefix(path, "/profile"):
+		// Handle /profile routes
 		switch method {
 		case "GET":
 			response = handlers.GetProfile(request)
@@ -60,6 +79,7 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 				Body:       "Method Not Allowed for /profile",
 			}
 		}
+
 	default:
 		response = events.APIGatewayProxyResponse{
 			StatusCode: 404,

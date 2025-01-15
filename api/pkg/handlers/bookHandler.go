@@ -148,7 +148,7 @@ func GetBooks(request events.APIGatewayProxyRequest) events.APIGatewayProxyRespo
 			return errorResponse(404, "Book not found")
 		}
 
-		var book Book
+		var book BookData
 		err = dynamodbattribute.UnmarshalMap(result.Item, &book)
 		if err != nil {
 			return errorResponse(500, "Error unmarshalling book: "+err.Error())
@@ -174,7 +174,7 @@ func GetBooks(request events.APIGatewayProxyRequest) events.APIGatewayProxyRespo
 		return errorResponse(404, "No books found")
 	}
 
-	var books []Book
+	var books []BookData
 	err = dynamodbattribute.UnmarshalListOfMaps(scanRes.Items, &books)
 	if err != nil {
 		return errorResponse(500, "Error unmarshalling items: "+err.Error())
