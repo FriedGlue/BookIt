@@ -20,6 +20,7 @@ import (
 // Book represents a single book record in DynamoDB.
 type BookData struct {
 	ISBN            string   `json:"isbn"` // Partition key
+	BookID          string   `json:"bookId,omitempty"`
 	Title           string   `json:"title,omitempty"`
 	PageCount       int      `json:"pageCount,omitempty"`
 	Authors         []string `json:"authors,omitempty"`
@@ -64,7 +65,7 @@ type OLSubject struct {
 }
 
 // fetchBookFromOpenLibrary fetches metadata by ISBN via Open Library.
-func fetchBookFromOpenLibrary(isbn string) (BookData, error) {
+func FetchBookFromOpenLibrary(isbn string) (BookData, error) {
 	// Example: https://openlibrary.org/api/books?bibkeys=ISBN:<isbn>&format=json&jscmd=data
 	url := fmt.Sprintf("https://openlibrary.org/api/books?bibkeys=ISBN:%s&format=json&jscmd=data", isbn)
 
@@ -204,7 +205,7 @@ func CreateBook(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 	}
 
 	// 1) Fetch data from Open Library
-	book, err := fetchBookFromOpenLibrary(input.ISBN)
+	book, err := FetchBookFromOpenLibrary(input.ISBN)
 	if err != nil {
 		return errorResponse(500, "Failed to fetch from Open Library: "+err.Error())
 	}

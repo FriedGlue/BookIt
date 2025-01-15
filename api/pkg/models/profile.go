@@ -1,7 +1,7 @@
 package models
 
 type Profile struct {
-	ID                 string                 `json:"_id"` // Partition Key = userId
+	ID                 string                 `json:"_id"`
 	ProfileInformation ProfileInformation     `json:"profileInformation"`
 	CurrentlyReading   []CurrentlyReadingItem `json:"currentlyReading,omitempty"`
 	Lists              UserLists              `json:"lists,omitempty"`
@@ -14,23 +14,25 @@ type ProfileInformation struct {
 }
 
 type CurrentlyReadingItem struct {
-	Book Book `json:"Book"`
+	Book        Book   `json:"Book"`
+	StartedDate string `json:"startedDate,omitempty"`
 }
 
 type Book struct {
 	BookID     string          `json:"bookId"`
 	ISBN       string          `json:"isbn,omitempty"`
 	Title      string          `json:"title,omitempty"`
+	Authors    []string        `json:"authors,omitempty"`
 	CoverImage string          `json:"coverImage,omitempty"`
+	TotalPages int             `json:"totalPages,omitempty"`
 	Progress   ReadingProgress `json:"progress,omitempty"`
 }
 
 type ReadingProgress struct {
-	LastPageRead int     `json:"lastPageRead,omitempty"`
-	Percentage   float64 `json:"percentage,omitempty"`
-	StartedDate  string  `json:"startedDate,omitempty"`
+	LastPageRead int     `json:"lastPageRead"`
+	Percentage   float64 `json:"percentage"`
+	LastUpdated  string  `json:"lastUpdated"`
 	Notes        string  `json:"notes,omitempty"`
-	LastUpdated  string  `json:"lastUpdated,omitempty"`
 }
 
 type UserLists struct {
@@ -62,10 +64,9 @@ type CustomListItem struct {
 }
 
 type ReadingLogItem struct {
-	Date             string `json:"date"`
-	BookID           string `json:"bookId"`
-	BookThumbnail    string `json:"bookThumbnail,omitempty"`
-	PagesRead        int    `json:"pagesRead,omitempty"`
-	TimeSpentMinutes int    `json:"timeSpentMinutes,omitempty"`
-	Notes            string `json:"notes,omitempty"`
+	Date          string `json:"date"`
+	BookID        string `json:"bookId"`
+	BookThumbnail string `json:"bookThumbnail,omitempty"`
+	PagesRead     int    `json:"pagesRead,omitempty"`
+	Notes         string `json:"notes,omitempty"`
 }

@@ -46,7 +46,7 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 			}
 		}
 
-	case strings.HasPrefix(path, "/profile/currently-reading"):
+	case strings.HasPrefix(path, "/currently-reading"):
 		// Handle /profile/currently-reading routes
 		switch method {
 		case "GET":
@@ -60,7 +60,7 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 		default:
 			response = events.APIGatewayProxyResponse{
 				StatusCode: 405,
-				Body:       "Method Not Allowed for /profile/currently-reading",
+				Body:       "Method Not Allowed for /currently-reading",
 			}
 		}
 

@@ -167,25 +167,25 @@ Resources:
         GetCurrentlyReadingEvent:
           Type: Api
           Properties:
-            Path: /profile/currently-reading
+            Path: /currently-reading
             Method: GET
             RestApiId: !Ref BookitApi
         AddToCurrentlyReadingEvent:
           Type: Api
           Properties:
-            Path: /profile/currently-reading
+            Path: /currently-reading
             Method: POST
             RestApiId: !Ref BookitApi
         UpdateCurrentlyReadingEvent:
           Type: Api
           Properties:
-            Path: /profile/currently-reading
+            Path: /currently-reading
             Method: PUT
             RestApiId: !Ref BookitApi
         RemoveFromCurrentlyReadingEvent:
           Type: Api
           Properties:
-            Path: /profile/currently-reading
+            Path: /currently-reading
             Method: DELETE
             RestApiId: !Ref BookitApi
 

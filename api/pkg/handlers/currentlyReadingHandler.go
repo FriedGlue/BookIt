@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
+	"math/rand"
+	"time"
 
 	"github.com/FriedGlue/BookIt/api/pkg/models"
 	"github.com/FriedGlue/BookIt/api/pkg/shared"
@@ -62,7 +65,12 @@ func GetCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGatewa
 	}
 }
 
-// AddToCurrentlyReading adds a book to the "currently reading" list in the Profile table
+type newCurrentlyReadingItemRequest struct {
+	ISBN   string `json:"isbn"`
+	BookID string `json:"bookId,omitempty"`
+}
+
+// AddToCurrentlyReading adds a new currentlyReadingItem to the "currently reading" list in the Profile table
 func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
 	log.Println("AddToCurrentlyReading invoked")
 	userId, err := shared.GetUserIDFromToken(request)
@@ -71,8 +79,8 @@ func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGate
 		return errorResponse(401, err.Error())
 	}
 
-	var book models.CurrentlyReadingItem
-	if err := json.Unmarshal([]byte(request.Body), &book); err != nil {
+	var newCurrentlyReadingItemRequest newCurrentlyReadingItemRequest
+	if err := json.Unmarshal([]byte(request.Body), &newCurrentlyReadingItemRequest); err != nil {
 		log.Printf("Invalid JSON: %v\n", err)
 		return errorResponse(400, "Invalid JSON: "+err.Error())
 	}
@@ -101,7 +109,70 @@ func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGate
 		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
-	profile.CurrentlyReading = append(profile.CurrentlyReading, book)
+	found := false
+	for _, item := range profile.CurrentlyReading {
+		if item.Book.ISBN == newCurrentlyReadingItemRequest.ISBN || item.Book.BookID == newCurrentlyReadingItemRequest.BookID {
+			found = true
+			break
+		}
+	}
+
+	if found {
+		return errorResponse(409, "Book already in currently reading list")
+	}
+
+	var bookDetails BookData
+	if newCurrentlyReadingItemRequest.BookID != "" {
+		// If the book ID is provided, we need to fetch the book details from the Books table
+		getBookInput := &dynamodb.GetItemInput{
+			TableName: aws.String(BOOKS_TABLE_NAME),
+			Key: map[string]*dynamodb.AttributeValue{
+				"bookId": {S: aws.String(newCurrentlyReadingItemRequest.BookID)},
+			},
+		}
+		bookResult, err := svc.GetItem(getBookInput)
+		if err != nil {
+			log.Printf("DynamoDB GetItem error: %v\n", err)
+			return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+		}
+		if bookResult.Item == nil {
+			log.Println("Book not found")
+			return errorResponse(404, "Book not found")
+		}
+		if err := dynamodbattribute.UnmarshalMap(bookResult.Item, &bookDetails); err != nil {
+			log.Printf("Error unmarshalling book details: %v\n", err)
+			return errorResponse(500, "Error unmarshalling book details: "+err.Error())
+		}
+	} else {
+		// If the book ID is not provided, we need to fetch the book details from the openlibrary API
+		bookDetails, err = FetchBookFromOpenLibrary(newCurrentlyReadingItemRequest.ISBN)
+		if err != nil {
+			log.Printf("Error fetching book details: %v\n", err)
+			return errorResponse(500, "Error fetching book details: "+err.Error())
+		}
+	}
+
+	// Create a new CurrentlyReadingItem and add it to the profile using the book details
+	temp := rand.New(rand.NewSource(time.Now().UnixNano()))
+	book := models.Book{
+		BookID:     fmt.Sprintf("%d", temp.Int()),
+		ISBN:       bookDetails.ISBN,
+		Title:      bookDetails.Title,
+		Authors:    bookDetails.Authors,
+		CoverImage: bookDetails.CoverImageURL,
+		TotalPages: bookDetails.PageCount,
+		Progress: models.ReadingProgress{
+			LastPageRead: 0,
+			Percentage:   0,
+			LastUpdated:  time.Now().Format(time.RFC3339),
+		},
+	}
+	currentlyReadingItem := models.CurrentlyReadingItem{
+		Book:        book,
+		StartedDate: time.Now().Format(time.RFC3339),
+	}
+
+	profile.CurrentlyReading = append(profile.CurrentlyReading, currentlyReadingItem)
 
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
@@ -127,6 +198,14 @@ func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGate
 }
 
 // UpdateCurrentlyReading updates a book in the "currently reading" list in the Profile table
+type updateCurrentlyReadingRequest struct {
+	ISBN        string `json:"isbn"`
+	CurrentPage int    `json:"currentPage"`
+	BookID      string `json:"bookId,omitempty"`
+	Title       string `json:"title,omitempty"`
+}
+
+// UpdateCurrentlyReading updates a book in the "currently reading" list in the Profile table
 func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
 	log.Println("UpdateCurrentlyReading invoked")
 	userId, err := shared.GetUserIDFromToken(request)
@@ -135,8 +214,8 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 		return errorResponse(401, err.Error())
 	}
 
-	var book models.CurrentlyReadingItem
-	if err := json.Unmarshal([]byte(request.Body), &book); err != nil {
+	var updateCurrentlyReadingRequest updateCurrentlyReadingRequest
+	if err := json.Unmarshal([]byte(request.Body), &updateCurrentlyReadingRequest); err != nil {
 		log.Printf("Invalid JSON: %v\n", err)
 		return errorResponse(400, "Invalid JSON: "+err.Error())
 	}
@@ -165,17 +244,33 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
-	updated := false
+	found := false
+	var storedBook models.CurrentlyReadingItem
+
+	// need to add check to ensure only one book is allowed inside the currently reading list
 	for i, item := range profile.CurrentlyReading {
-		if item.Book.BookID == book.Book.BookID {
-			profile.CurrentlyReading[i] = book
-			updated = true
+		if item.Book.ISBN == updateCurrentlyReadingRequest.ISBN {
+			storedBook = profile.CurrentlyReading[i]
+			found = true
 			break
 		}
 	}
 
-	if !updated {
+	if !found {
 		return errorResponse(404, "Book not found in currently reading list")
+	}
+
+	newProgressPercentage := math.Floor(float64(float64(updateCurrentlyReadingRequest.CurrentPage) / float64(storedBook.Book.TotalPages) * 100))
+
+	storedBook.Book.Progress.LastPageRead = updateCurrentlyReadingRequest.CurrentPage
+	storedBook.Book.Progress.Percentage = newProgressPercentage
+	storedBook.Book.Progress.LastUpdated = time.Now().Format(time.RFC3339)
+
+	for i, item := range profile.CurrentlyReading {
+		if item.Book.ISBN == updateCurrentlyReadingRequest.ISBN {
+			profile.CurrentlyReading[i].Book.Progress = storedBook.Book.Progress
+			break
+		}
 	}
 
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
@@ -211,8 +306,9 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 	}
 
 	bookID := request.QueryStringParameters["bookID"]
-	if bookID == "" {
-		return errorResponse(400, "bookID query parameter is required")
+	isbn := request.QueryStringParameters["isbn"]
+	if bookID == "" && isbn == "" {
+		return errorResponse(400, "bookID or isbn query parameter are required")
 	}
 
 	svc := DynamoDBClient()
@@ -241,7 +337,7 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 
 	index := -1
 	for i, item := range profile.CurrentlyReading {
-		if item.Book.BookID == bookID {
+		if item.Book.BookID == bookID || item.Book.ISBN == bookID {
 			index = i
 			break
 		}
