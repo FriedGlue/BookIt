@@ -1,4 +1,4 @@
-module github.com/friedglue/BookIt/api
+module github.com/FriedGlue/BookIt/api
 
 go 1.23.3
 

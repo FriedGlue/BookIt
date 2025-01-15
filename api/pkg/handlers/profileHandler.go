@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -20,18 +21,140 @@ var (
 func getUserIDFromToken(request events.APIGatewayProxyRequest) (string, error) {
 	claims, ok := request.RequestContext.Authorizer["claims"].(map[string]interface{})
 	if !ok {
+		log.Println("No claims found in request context")
 		return "", fmt.Errorf("No claims found in request context")
 	}
 	sub, ok := claims["sub"].(string)
 	if !ok || sub == "" {
+		log.Println("No 'sub' claim in token")
 		return "", fmt.Errorf("No 'sub' claim in token")
 	}
 	return sub, nil
 }
 
-// ----------------------- Data Model -----------------------
+// ----------------------- Handlers -----------------------
 
-// Profile represents the entire user profile in DynamoDB
+// GetProfile retrieves the user’s profile from DynamoDB
+func GetProfile(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	log.Println("GetProfile invoked")
+	userId, err := getUserIDFromToken(request)
+	if err != nil {
+		log.Printf("Error extracting userId: %v\n", err)
+		return errorResponse(401, err.Error())
+	}
+
+	svc := DynamoDBClient()
+
+	input := &dynamodb.GetItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Key: map[string]*dynamodb.AttributeValue{
+			"_id": {S: aws.String(userId)},
+		},
+	}
+
+	log.Printf("Fetching profile for userId: %s\n", userId)
+	result, err := svc.GetItem(input)
+	if err != nil {
+		log.Printf("DynamoDB GetItem error: %v\n", err)
+		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+	}
+	if result.Item == nil {
+		log.Println("Profile not found")
+		return errorResponse(404, "Profile not found")
+	}
+
+	var profile Profile
+	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
+		log.Printf("Error unmarshalling profile: %v\n", err)
+		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
+	}
+
+	responseBody, err := json.Marshal(profile)
+	if err != nil {
+		log.Printf("Error marshalling response: %v\n", err)
+		return errorResponse(500, "Error marshalling profile response")
+	}
+
+	log.Println("Profile retrieval successful")
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       string(responseBody),
+	}
+}
+
+// CreateOrUpdateProfile either creates a new profile or updates an existing one
+func CreateOrUpdateProfile(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	log.Println("CreateOrUpdateProfile invoked")
+	userId, err := getUserIDFromToken(request)
+	if err != nil {
+		log.Printf("Error extracting userId: %v\n", err)
+		return errorResponse(401, err.Error())
+	}
+
+	var incomingProfile Profile
+	if err := json.Unmarshal([]byte(request.Body), &incomingProfile); err != nil {
+		log.Printf("Invalid JSON: %v\n", err)
+		return errorResponse(400, "Invalid JSON: "+err.Error())
+	}
+
+	incomingProfile.ID = userId
+	log.Printf("Creating/Updating profile for userId: %s\n", userId)
+
+	item, err := dynamodbattribute.MarshalMap(incomingProfile)
+	if err != nil {
+		log.Printf("Error marshalling profile: %v\n", err)
+		return errorResponse(500, "Error marshalling profile: "+err.Error())
+	}
+
+	svc := DynamoDBClient()
+	input := &dynamodb.PutItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Item:      item,
+	}
+	_, err = svc.PutItem(input)
+	if err != nil {
+		log.Printf("DynamoDB PutItem error: %v\n", err)
+		return errorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+	}
+
+	log.Printf("Profile created/updated for user %s\n", userId)
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       fmt.Sprintf("Profile created or updated for user %s", userId),
+	}
+}
+
+// DeleteProfile removes a user's profile from DynamoDB
+func DeleteProfile(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	log.Println("DeleteProfile invoked")
+	userId, err := getUserIDFromToken(request)
+	if err != nil {
+		log.Printf("Error extracting userId: %v\n", err)
+		return errorResponse(401, err.Error())
+	}
+
+	svc := DynamoDBClient()
+	input := &dynamodb.DeleteItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Key: map[string]*dynamodb.AttributeValue{
+			"_id": {S: aws.String(userId)},
+		},
+	}
+
+	_, err = svc.DeleteItem(input)
+	if err != nil {
+		log.Printf("DynamoDB DeleteItem error: %v\n", err)
+		return errorResponse(500, fmt.Sprintf("DynamoDB DeleteItem error: %v", err))
+	}
+
+	log.Printf("Profile deleted for user %s\n", userId)
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       fmt.Sprintf("Profile deleted for user %s", userId),
+	}
+}
+
+// Define all your types (Profile, ProfileInformation, etc.) here or in another file.
 type Profile struct {
 	ID                 string             `json:"_id"` // Partition Key = userId
 	ProfileInformation ProfileInformation `json:"profileInformation"`
@@ -100,109 +223,4 @@ type ReadingLogItem struct {
 	PagesRead        int    `json:"pagesRead,omitempty"`
 	TimeSpentMinutes int    `json:"timeSpentMinutes,omitempty"`
 	Notes            string `json:"notes,omitempty"`
-}
-
-// ----------------------- Handlers -----------------------
-
-// GetProfile retrieves the user’s profile from DynamoDB
-func GetProfile(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
-	userId, err := getUserIDFromToken(request)
-	if err != nil {
-		return errorResponse(401, err.Error())
-	}
-
-	svc := DynamoDBClient()
-
-	// Fetch single item by userId
-	input := &dynamodb.GetItemInput{
-		TableName: &PROFILES_TABLE_NAME,
-		Key: map[string]*dynamodb.AttributeValue{
-			"_id": {S: aws.String(userId)}, // _id is the partition key
-		},
-	}
-
-	result, err := svc.GetItem(input)
-	if err != nil {
-		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
-	}
-	if result.Item == nil {
-		return errorResponse(404, "Profile not found")
-	}
-
-	var profile Profile
-	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
-		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
-	}
-
-	responseBody, _ := json.Marshal(profile)
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       string(responseBody),
-	}
-}
-
-// CreateOrUpdateProfile either creates a new profile or updates an existing one
-// This can be a PUT or POST route, depending on your preference
-func CreateOrUpdateProfile(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
-	userId, err := getUserIDFromToken(request)
-	if err != nil {
-		return errorResponse(401, err.Error())
-	}
-
-	// Parse the incoming JSON as a full Profile structure
-	var incomingProfile Profile
-	if err := json.Unmarshal([]byte(request.Body), &incomingProfile); err != nil {
-		return errorResponse(400, "Invalid JSON: "+err.Error())
-	}
-
-	// Ensure the _id matches the user’s sub from the token
-	incomingProfile.ID = userId
-
-	// If you want to ensure a timestamp or something else, you can do it here
-	// e.g., if you store "lastUpdated" at the root
-
-	item, err := dynamodbattribute.MarshalMap(incomingProfile)
-	if err != nil {
-		return errorResponse(500, "Error marshalling profile: "+err.Error())
-	}
-
-	svc := DynamoDBClient()
-	input := &dynamodb.PutItemInput{
-		TableName: &PROFILES_TABLE_NAME,
-		Item:      item,
-	}
-	_, err = svc.PutItem(input)
-	if err != nil {
-		return errorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
-	}
-
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       fmt.Sprintf("Profile created or updated for user %s", userId),
-	}
-}
-
-// Optionally, you could have a "DeleteProfile" if you want
-// The data model might not require that, but here's how you'd do it:
-func DeleteProfile(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
-	userId, err := getUserIDFromToken(request)
-	if err != nil {
-		return errorResponse(401, err.Error())
-	}
-
-	svc := DynamoDBClient()
-	input := &dynamodb.DeleteItemInput{
-		TableName: &PROFILES_TABLE_NAME,
-		Key: map[string]*dynamodb.AttributeValue{
-			"_id": {S: aws.String(userId)},
-		},
-	}
-	if _, err := svc.DeleteItem(input); err != nil {
-		return errorResponse(500, fmt.Sprintf("DynamoDB DeleteItem error: %v", err))
-	}
-
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       fmt.Sprintf("Profile deleted for user %s", userId),
-	}
 }

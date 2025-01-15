@@ -4,9 +4,9 @@ import (
 	"context"
 	"strings"
 
+	"github.com/FriedGlue/BookIt/api/pkg/handlers"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/friedglue/BookIt/api/pkg/handlers"
 )
 
 // addCORSHeaders adds the appropriate headers to allow cross-origin requests.

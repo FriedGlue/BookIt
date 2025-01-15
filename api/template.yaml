@@ -92,8 +92,10 @@ Resources:
     Properties:
       FunctionName: MainOrchestrator 
       Runtime: provided.al2
-      Handler: main
-      CodeUri:  ./cmd/orchestrator 
+      Handler: bootstrap
+      CodeUri: cmd/orchestrator/bootstrap
+      PackageType: Zip
+      Architectures: [arm64]
       Environment:
         Variables:
           PROFILES_TABLE_NAME: !Ref ProfilesTable
@@ -141,35 +143,23 @@ Resources:
             Path: /books/{isbn}
             Method: ANY
 
-        # User Lists routes
-        GetListsEvent:
+        # Profile routes
+        GetProfileEvent:
           Type: Api
           Properties:
-            Path: /lists
+            Path: /profile
             Method: GET
             RestApiId: !Ref BookitApi  
-        GetOneListEvent:
+        UpdateProfileEvent:
           Type: Api
           Properties:
-            Path: /lists/{listName}
-            Method: GET
-            RestApiId: !Ref BookitApi
-        CreateListEvent:
-          Type: Api
-          Properties:
-            Path: /lists/{listName}
+            Path: /profile
             Method: POST
             RestApiId: !Ref BookitApi
-        UpdateListEvent:
+        DeleteProfileEvent:
           Type: Api
           Properties:
-            Path: /lists/{listName}
-            Method: PUT
-            RestApiId: !Ref BookitApi
-        DeleteListEvent:
-          Type: Api
-          Properties:
-            Path: /lists/{listName}
+            Path: /profile
             Method: DELETE
             RestApiId: !Ref BookitApi
 
@@ -181,8 +171,10 @@ Resources:
     Properties:
       FunctionName: Authentication 
       Runtime: provided.al2
-      Handler: main
-      CodeUri: ./cmd/auth
+      Handler: bootstrap
+      CodeUri: cmd/auth/bootstrap
+      PackageType: Zip
+      Architectures: [arm64]
       Environment:
         Variables:
           USER_POOL_ID: !Ref MyUserPool

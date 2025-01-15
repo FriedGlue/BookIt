@@ -31,7 +31,7 @@ for SRC_DIR in "${SRC_DIRS[@]}"; do
 
     # Compile the Go application
     echo "Compiling the Go application in $SRC_DIR..."
-    GOOS=$GOOS GOARCH=$GOARCH CGO_ENABLED=0 go build -o $OUTPUT_NAME 
+    GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o bootstrap -tags lambda.norpc main.go
 
     # Ensure the binary is executable
     chmod 755 "./$OUTPUT_NAME"
