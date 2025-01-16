@@ -337,7 +337,7 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 
 	index := -1
 	for i, item := range profile.CurrentlyReading {
-		if item.Book.BookID == bookID || item.Book.ISBN == bookID {
+		if item.Book.BookID == bookID || item.Book.ISBN == isbn {
 			index = i
 			break
 		}

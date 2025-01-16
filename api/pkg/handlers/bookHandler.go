@@ -3,8 +3,10 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
@@ -130,15 +132,15 @@ func FetchBookFromOpenLibrary(isbn string) (BookData, error) {
 //   - If an ISBN is provided in pathParameters["isbn"], retrieve that specific book.
 //   - If no ISBN is provided, do a scan or handle accordingly (not recommended at large scale).
 func GetBooks(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
-	isbn, hasISBN := request.PathParameters["isbn"]
+	bookId, hasBookId := request.PathParameters["isbn"]
 	svc := DynamoDBClient()
 
-	if hasISBN && isbn != "" {
+	if hasBookId && bookId != "" {
 		// Retrieve a single book by primary key
 		getInput := &dynamodb.GetItemInput{
-			TableName: aws.String("Books"),
+			TableName: aws.String(BOOKS_TABLE_NAME),
 			Key: map[string]*dynamodb.AttributeValue{
-				"isbn": {S: aws.String(isbn)},
+				"bookId": {S: aws.String(bookId)},
 			},
 		}
 		result, err := svc.GetItem(getInput)
@@ -162,10 +164,10 @@ func GetBooks(request events.APIGatewayProxyRequest) events.APIGatewayProxyRespo
 		}
 	}
 
-	// No ISBN => we might do a full table scan or return an error
+	// No bookId => we might do a full table scan or return an error
 	// WARNING: Doing a scan on a large table can be expensive
 	scanInput := &dynamodb.ScanInput{
-		TableName: aws.String("Books"),
+		TableName: aws.String(BOOKS_TABLE_NAME),
 	}
 	scanRes, err := svc.Scan(scanInput)
 	if err != nil {
@@ -210,6 +212,9 @@ func CreateBook(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 		return errorResponse(500, "Failed to fetch from Open Library: "+err.Error())
 	}
 
+	temp := rand.New(rand.NewSource(time.Now().UnixNano()))
+	book.BookID = fmt.Sprintf("%d", temp.Int())
+
 	// 2) Store in DynamoDB
 	av, err := dynamodbattribute.MarshalMap(book)
 	if err != nil {
@@ -218,7 +223,7 @@ func CreateBook(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 
 	svc := DynamoDBClient()
 	putInput := &dynamodb.PutItemInput{
-		TableName: aws.String("Books"),
+		TableName: aws.String(BOOKS_TABLE_NAME),
 		Item:      av,
 	}
 	_, err = svc.PutItem(putInput)
@@ -231,6 +236,8 @@ func CreateBook(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 		Body:       fmt.Sprintf("Book with ISBN %s created successfully", book.ISBN),
 	}
 }
+
+// NEEDS TO BE UPDATED TO USE BOOK ID
 
 // 3. PUT /books/{isbn}
 //   - The request body can contain partial updates.
@@ -277,9 +284,9 @@ func UpdateBook(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 
 	svc := DynamoDBClient()
 	input := &dynamodb.UpdateItemInput{
-		TableName: aws.String("Books"),
+		TableName: aws.String(BOOKS_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
-			"isbn": {S: aws.String(isbn)},
+			"bookId": {S: aws.String(isbn)},
 		},
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
@@ -300,9 +307,9 @@ func UpdateBook(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 
 // 4. DELETE /books/{isbn}
 func DeleteBook(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
-	isbn, hasISBN := request.PathParameters["isbn"]
+	isbn, hasISBN := request.QueryStringParameters["isbn"]
 	if !hasISBN || isbn == "" {
-		return errorResponse(400, "Missing path parameter: isbn")
+		return errorResponse(400, "Missing query string parameter: isbn")
 	}
 
 	svc := DynamoDBClient()

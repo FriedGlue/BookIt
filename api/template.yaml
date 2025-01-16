@@ -35,15 +35,15 @@ Resources:
         - ALLOW_USER_PASSWORD_AUTH
 
   #####################################
-  # DynamoDB Table: "Books"  
+  # DynamoDB Table: "BooksTable"  
   #####################################
   BooksTable:
     Type: AWS::Serverless::SimpleTable
     Properties:
-      TableName: Books
+      TableName: BooksTable
       PrimaryKey:
-        Name: isbn
-        Type: String
+        Name: bookId 
+        Type: String 
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
@@ -99,6 +99,7 @@ Resources:
       Environment:
         Variables:
           PROFILES_TABLE_NAME: !Ref ProfilesTable
+          BOOKS_TABLE_NAME: !Ref BooksTable
 
       # DynamoDB Policies 
       Policies:
