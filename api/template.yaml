@@ -13,6 +13,22 @@ Globals:
 
 Resources:
   #####################################
+  # API Gateway: "BookitApi"  
+  #####################################
+  BookitApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: BookitApi
+      StageName: dev
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt MyUserPool.Arn
+            Identity:
+              Header: Authorization
+
+  #####################################
   # Authentication resources
   #####################################
 
@@ -62,27 +78,6 @@ Resources:
       KeySchema:
         - AttributeName: _id
           KeyType: HASH
-
-  #####################################
-  # SAM API: "BookitApi"  
-  #####################################
-  BookitApi:
-    Type: AWS::Serverless::Api
-    Properties:
-      Name: BookitApi
-      StageName: Dev
-      EndpointConfiguration: REGIONAL
-      Cors:
-        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-        AllowHeaders: "'Content-Type,Authorization'"
-        AllowOrigin: "'*'"
-      Auth:
-        DefaultAuthorizer: CognitoAuthorizer
-        Authorizers:
-          CognitoAuthorizer:
-            UserPoolArn: !GetAtt MyUserPool.Arn
-            Identity:
-              Header: Authorization
 
   #####################################
   # Lambda Function: "MainOrchestrator"  
@@ -145,50 +140,29 @@ Resources:
             Method: ANY
 
         # Profile routes
-        GetProfileEvent:
+        AnyProfileEventTest:
           Type: Api
           Properties:
             Path: /profile
-            Method: GET
+            Method: ANY
             RestApiId: !Ref BookitApi  
-        UpdateProfileEvent:
-          Type: Api
-          Properties:
-            Path: /profile
-            Method: POST
-            RestApiId: !Ref BookitApi
-        DeleteProfileEvent:
-          Type: Api
-          Properties:
-            Path: /profile
-            Method: DELETE
-            RestApiId: !Ref BookitApi
 
         # CurrentlyReading routes
-        GetCurrentlyReadingEvent:
+        AnyCurrentlyReadingEventTest:
           Type: Api
           Properties:
             Path: /currently-reading
-            Method: GET
-            RestApiId: !Ref BookitApi
-        AddToCurrentlyReadingEvent:
+            Method: ANY
+            RestApiId: !Ref BookitApi  
+
+        # List routes
+        AnyListEventTest:
           Type: Api
           Properties:
-            Path: /currently-reading
-            Method: POST
-            RestApiId: !Ref BookitApi
-        UpdateCurrentlyReadingEvent:
-          Type: Api
-          Properties:
-            Path: /currently-reading
-            Method: PUT
-            RestApiId: !Ref BookitApi
-        RemoveFromCurrentlyReadingEvent:
-          Type: Api
-          Properties:
-            Path: /currently-reading
-            Method: DELETE
-            RestApiId: !Ref BookitApi
+            Path: /list
+            Method: ANY
+            RestApiId: !Ref BookitApi  
+
 
   #####################################
   # Lambda Function: "Authentication"  
@@ -256,7 +230,7 @@ Resources:
 Outputs:
   ApiUrl:
     Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${BookitApi}.execute-api.${AWS::Region}.amazonaws.com/Dev/books"
+    Value: !Sub "https://${BookitApi}.execute-api.${AWS::Region}.amazonaws.com/dev/books"
 
   BooksTableName:
     Description: "Name of the DynamoDB Books table"

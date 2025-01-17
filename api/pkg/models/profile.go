@@ -23,7 +23,7 @@ type Book struct {
 	ISBN       string          `json:"isbn,omitempty"`
 	Title      string          `json:"title,omitempty"`
 	Authors    []string        `json:"authors,omitempty"`
-	CoverImage string          `json:"coverImage,omitempty"`
+	Thumbnail  string          `json:"thumbnail,omitempty"`
 	TotalPages int             `json:"totalPages,omitempty"`
 	Progress   ReadingProgress `json:"progress,omitempty"`
 }
@@ -50,6 +50,7 @@ type ToBeReadItem struct {
 
 type ReadItem struct {
 	BookID        string `json:"bookId"`
+	Thumbnail     string `json:"thumbnail,omitempty"`
 	CompletedDate string `json:"completedDate,omitempty"`
 	Rating        int    `json:"rating,omitempty"`
 	Order         int    `json:"order,omitempty"`
