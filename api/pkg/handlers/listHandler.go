@@ -119,15 +119,40 @@ func AddToList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResp
 		return errorResponse(400, "Invalid JSON: "+err.Error())
 	}
 
+	// First get the book details from books table
 	svc := DynamoDBClient()
-	input := &dynamodb.GetItemInput{
+	bookInput := &dynamodb.GetItemInput{
+		TableName: aws.String(BOOKS_TABLE_NAME),
+		Key: map[string]*dynamodb.AttributeValue{
+			"bookId": {S: aws.String(addReq.BookID)},
+		},
+	}
+
+	bookResult, err := svc.GetItem(bookInput)
+	if err != nil {
+		log.Printf("DynamoDB GetItem error for book: %v\n", err)
+		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+	}
+	if bookResult.Item == nil {
+		log.Println("Book not found")
+		return errorResponse(404, "Book not found")
+	}
+
+	var bookDetails BookData
+	if err := dynamodbattribute.UnmarshalMap(bookResult.Item, &bookDetails); err != nil {
+		log.Printf("Error unmarshalling book details: %v\n", err)
+		return errorResponse(500, "Error unmarshalling book details: "+err.Error())
+	}
+
+	// Get user profile
+	profileInput := &dynamodb.GetItemInput{
 		TableName: aws.String(PROFILES_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
 			"_id": {S: aws.String(userId)},
 		},
 	}
 
-	result, err := svc.GetItem(input)
+	result, err := svc.GetItem(profileInput)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error: %v\n", err)
 		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
@@ -147,17 +172,17 @@ func AddToList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResp
 	switch addReq.ListType {
 	case "toBeRead":
 		item := models.ToBeReadItem{
-			BookID:    addReq.BookID,
-			Thumbnail: addReq.Thumbnail,
+			BookID:    bookDetails.BookID,
+			Thumbnail: bookDetails.CoverImageURL,
 			AddedDate: currentTime,
 			Order:     len(profile.Lists.ToBeRead),
 		}
 		profile.Lists.ToBeRead = append(profile.Lists.ToBeRead, item)
 	case "read":
 		item := models.ReadItem{
-			BookID:        addReq.BookID,
+			BookID:        bookDetails.BookID,
 			CompletedDate: currentTime,
-			Thumbnail:     addReq.Thumbnail,
+			Thumbnail:     bookDetails.CoverImageURL,
 			Rating:        addReq.Rating,
 			Review:        addReq.Review,
 			Order:         len(profile.Lists.Read),
@@ -165,8 +190,8 @@ func AddToList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResp
 		profile.Lists.Read = append(profile.Lists.Read, item)
 	default:
 		item := models.CustomListItem{
-			BookID:    addReq.BookID,
-			Thumbnail: addReq.Thumbnail,
+			BookID:    bookDetails.BookID,
+			Thumbnail: bookDetails.CoverImageURL,
 			AddedDate: currentTime,
 			Order:     len(profile.Lists.CustomLists[addReq.ListType]),
 		}
@@ -410,6 +435,8 @@ func DeleteListItem(request events.APIGatewayProxyRequest) events.APIGatewayProx
 		log.Printf("Error unmarshalling profile: %v\n", err)
 		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
+
+	// Initialize lists if they don't exist
 
 	found := false
 	switch listType {

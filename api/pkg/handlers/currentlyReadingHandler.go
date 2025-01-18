@@ -399,3 +399,263 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 		Body:       "Book removed from currently reading",
 	}
 }
+
+// StartReadingRequest represents the request body for starting a book
+type StartReadingRequest struct {
+	BookID   string `json:"bookId"`
+	ListName string `json:"listName"` // "toBeRead", "read", or custom list name
+}
+
+// StartReading moves a book from any list to currently reading
+func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	log.Println("StartReading invoked")
+	userId, err := shared.GetUserIDFromToken(request)
+	if err != nil {
+		log.Printf("Error extracting userId: %v\n", err)
+		return errorResponse(401, err.Error())
+	}
+
+	var startReq StartReadingRequest
+	if err := json.Unmarshal([]byte(request.Body), &startReq); err != nil {
+		log.Printf("Invalid JSON: %v\n", err)
+		return errorResponse(400, "Invalid JSON: "+err.Error())
+	}
+
+	if startReq.BookID == "" {
+		return errorResponse(400, "bookId is required")
+	}
+	if startReq.ListName == "" {
+		return errorResponse(400, "listName is required")
+	}
+
+	svc := DynamoDBClient()
+	getInput := &dynamodb.GetItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Key: map[string]*dynamodb.AttributeValue{
+			"_id": {S: aws.String(userId)},
+		},
+	}
+
+	result, err := svc.GetItem(getInput)
+	if err != nil {
+		log.Printf("DynamoDB GetItem error: %v\n", err)
+		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+	}
+	if result.Item == nil {
+		log.Println("Profile not found")
+		return errorResponse(404, "Profile not found")
+	}
+
+	var profile models.Profile
+	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
+		log.Printf("Error unmarshalling profile: %v\n", err)
+		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
+	}
+
+	// Find and remove the book from the specified list
+	found := false
+	switch startReq.ListName {
+	case "toBeRead":
+		for i, item := range profile.Lists.ToBeRead {
+			if item.BookID == startReq.BookID {
+				profile.Lists.ToBeRead = append(profile.Lists.ToBeRead[:i], profile.Lists.ToBeRead[i+1:]...)
+				found = true
+				break
+			}
+		}
+	case "read":
+		for i, item := range profile.Lists.Read {
+			if item.BookID == startReq.BookID {
+				profile.Lists.Read = append(profile.Lists.Read[:i], profile.Lists.Read[i+1:]...)
+				found = true
+				break
+			}
+		}
+	default:
+		// Check custom lists
+		if customList, exists := profile.Lists.CustomLists[startReq.ListName]; exists {
+			for i, item := range customList {
+				if item.BookID == startReq.BookID {
+					profile.Lists.CustomLists[startReq.ListName] = append(customList[:i], customList[i+1:]...)
+					found = true
+					break
+				}
+			}
+		}
+	}
+
+	if !found {
+		return errorResponse(404, fmt.Sprintf("Book not found in %s list", startReq.ListName))
+	}
+
+	// Get book details from the Books table
+	getBookInput := &dynamodb.GetItemInput{
+		TableName: aws.String(BOOKS_TABLE_NAME),
+		Key: map[string]*dynamodb.AttributeValue{
+			"bookId": {S: aws.String(startReq.BookID)},
+		},
+	}
+	bookResult, err := svc.GetItem(getBookInput)
+	if err != nil {
+		log.Printf("DynamoDB GetItem error: %v\n", err)
+		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+	}
+	if bookResult.Item == nil {
+		log.Println("Book not found")
+		return errorResponse(404, "Book not found")
+	}
+
+	var bookDetails BookData
+	if err := dynamodbattribute.UnmarshalMap(bookResult.Item, &bookDetails); err != nil {
+		log.Printf("Error unmarshalling book details: %v\n", err)
+		return errorResponse(500, "Error unmarshalling book details: "+err.Error())
+	}
+
+	// Create a new currently reading item
+	currentlyReadingItem := models.CurrentlyReadingItem{
+		Book: models.Book{
+			BookID:     bookDetails.BookID,
+			ISBN:       bookDetails.ISBN,
+			Title:      bookDetails.Title,
+			Authors:    bookDetails.Authors,
+			Thumbnail:  bookDetails.CoverImageURL,
+			TotalPages: bookDetails.PageCount,
+			Progress: models.ReadingProgress{
+				LastPageRead: 0,
+				Percentage:   0,
+				LastUpdated:  time.Now().Format(time.RFC3339),
+			},
+		},
+		StartedDate: time.Now().Format(time.RFC3339),
+	}
+
+	// Add to currently reading list
+	profile.CurrentlyReading = append(profile.CurrentlyReading, currentlyReadingItem)
+
+	// Update the profile in DynamoDB
+	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
+	if err != nil {
+		log.Printf("Error marshalling updated profile: %v\n", err)
+		return errorResponse(500, "Error marshalling updated profile: "+err.Error())
+	}
+
+	putInput := &dynamodb.PutItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Item:      updatedProfile,
+	}
+	_, err = svc.PutItem(putInput)
+	if err != nil {
+		log.Printf("DynamoDB PutItem error: %v\n", err)
+		return errorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+	}
+
+	log.Printf("Book moved to currently reading from %s list for user %s\n", startReq.ListName, userId)
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       fmt.Sprintf("Book moved to currently reading from %s list", startReq.ListName),
+	}
+}
+
+// FinishReadingRequest represents the request body for finishing a book
+type FinishReadingRequest struct {
+	BookID string `json:"bookId"`
+}
+
+// FinishReading moves a book from currently reading to read list
+func FinishReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	log.Println("FinishReading invoked")
+	userId, err := shared.GetUserIDFromToken(request)
+	if err != nil {
+		log.Printf("Error extracting userId: %v\n", err)
+		return errorResponse(401, err.Error())
+	}
+
+	var finishReq FinishReadingRequest
+	if err := json.Unmarshal([]byte(request.Body), &finishReq); err != nil {
+		log.Printf("Invalid JSON: %v\n", err)
+		return errorResponse(400, "Invalid JSON: "+err.Error())
+	}
+
+	if finishReq.BookID == "" {
+		return errorResponse(400, "bookId is required")
+	}
+
+	svc := DynamoDBClient()
+	getInput := &dynamodb.GetItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Key: map[string]*dynamodb.AttributeValue{
+			"_id": {S: aws.String(userId)},
+		},
+	}
+
+	result, err := svc.GetItem(getInput)
+	if err != nil {
+		log.Printf("DynamoDB GetItem error: %v\n", err)
+		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+	}
+	if result.Item == nil {
+		log.Println("Profile not found")
+		return errorResponse(404, "Profile not found")
+	}
+
+	var profile models.Profile
+	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
+		log.Printf("Error unmarshalling profile: %v\n", err)
+		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
+	}
+
+	// Find and remove the book from currently reading
+	var bookToMove models.CurrentlyReadingItem
+	found := false
+	for i, item := range profile.CurrentlyReading {
+		if item.Book.BookID == finishReq.BookID {
+			bookToMove = item
+			profile.CurrentlyReading = append(profile.CurrentlyReading[:i], profile.CurrentlyReading[i+1:]...)
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return errorResponse(404, "Book not found in currently reading list")
+	}
+
+	// Create a new read item
+	readItem := models.ReadItem{
+		BookID:        bookToMove.Book.BookID,
+		CompletedDate: time.Now().Format(time.RFC3339),
+		Thumbnail:     bookToMove.Book.Thumbnail,
+		Rating:        0,  // Initial rating
+		Review:        "", // Initial review
+		Order:         len(profile.Lists.Read),
+	}
+
+	// Initialize Lists if needed and add to read list
+	if len(profile.Lists.Read) == 0 {
+		profile.Lists.Read = []models.ReadItem{}
+	}
+	profile.Lists.Read = append(profile.Lists.Read, readItem)
+
+	// Update the profile in DynamoDB
+	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
+	if err != nil {
+		log.Printf("Error marshalling updated profile: %v\n", err)
+		return errorResponse(500, "Error marshalling updated profile: "+err.Error())
+	}
+
+	putInput := &dynamodb.PutItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Item:      updatedProfile,
+	}
+	_, err = svc.PutItem(putInput)
+	if err != nil {
+		log.Printf("DynamoDB PutItem error: %v\n", err)
+		return errorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+	}
+
+	log.Printf("Book moved to read list for user %s\n", userId)
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       "Book moved to read list",
+	}
+}

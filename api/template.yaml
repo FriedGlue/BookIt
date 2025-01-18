@@ -28,6 +28,7 @@ Resources:
             Identity:
               Header: Authorization
 
+
   #####################################
   # Authentication resources
   #####################################
@@ -152,6 +153,22 @@ Resources:
           Type: Api
           Properties:
             Path: /currently-reading
+            Method: ANY
+            RestApiId: !Ref BookitApi  
+
+        # CurrentlyReading routes
+        CurrentlyReadingStartReadingEventTest:
+          Type: Api
+          Properties:
+            Path: /currently-reading/start-reading
+            Method: ANY
+            RestApiId: !Ref BookitApi  
+
+        # CurrentlyReading routes
+        CurrentlyReadingFinishReadingEventTest:
+          Type: Api
+          Properties:
+            Path: /currently-reading/finish-reading
             Method: ANY
             RestApiId: !Ref BookitApi  
 

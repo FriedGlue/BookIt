@@ -47,4 +47,28 @@ export class BookService {
             throw new Error('Failed to delete book');
         }
     }
+
+    async startReading(bookId: string, listName: string): Promise<void> {
+        const response = await fetch(`${PUBLIC_API_BASE_URL}/currently-reading/start-reading`, {
+            method: "POST",
+            headers: this.getHeaders(),
+            body: JSON.stringify({ bookId, listName })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to start reading book');
+        }
+    }
+
+    async finishReading(bookId: string): Promise<void> {
+        const response = await fetch(`${PUBLIC_API_BASE_URL}/currently-reading/finish-reading`, {
+            method: "POST",
+            headers: this.getHeaders(),
+            body: JSON.stringify({ bookId })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to finish reading book');
+        }
+    }
 } 

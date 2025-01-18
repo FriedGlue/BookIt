@@ -12,6 +12,8 @@
   let toBeReadList: ToBeReadItem[] = [];
   let readList: ReadItem[] = [];
   let customLists: Record<string, any[]> = {};
+  let isStartingBook = false;
+  let isFinishingBook = false;
   
   const bookService = new BookService();
   const authService = new AuthService();
@@ -20,7 +22,7 @@
       try {
           const profile = await bookService.getProfile();
 
-          books = profile.currentlyReading.map(item => ({
+          books = (profile.currentlyReading || []).map(item => ({
               bookId: item.Book.bookId,
               title: item.Book.title || 'Untitled',
               author: item.Book.authors ? item.Book.authors[0] : 'Unknown Author',
@@ -84,6 +86,71 @@
       }
   }
 
+  async function startReading(bookId: string, listName: string) {
+    if (isStartingBook) return;
+    
+    try {
+        isStartingBook = true;
+        await bookService.startReading(bookId, listName);
+        
+        // Update local state
+        const profile = await bookService.getProfile();
+        
+        // Update currently reading list
+        books = profile.currentlyReading.map(item => ({
+            bookId: item.Book.bookId,
+            title: item.Book.title || 'Untitled',
+            author: item.Book.authors ? item.Book.authors[0] : 'Unknown Author',
+            thumbnail: item.Book.thumbnail || '',
+            progress: item.Book.progress ? item.Book.progress.percentage : 0,
+            totalPages: item.Book.totalPages || 1
+        }));
+
+        // Update source list
+        if (listName === 'toBeRead') {
+            toBeReadList = profile.lists?.toBeRead || [];
+        } else if (listName === 'read') {
+            readList = profile.lists?.read || [];
+        } else {
+            customLists = profile.lists?.customLists || {};
+        }
+    } catch (error) {
+        console.error('Error starting book:', error);
+    } finally {
+        isStartingBook = false;
+    }
+  }
+
+  async function finishBook() {
+    if (!selectedBook || isFinishingBook) return;
+
+    try {
+        isFinishingBook = true;
+        await bookService.finishReading(selectedBook.bookId);
+        
+        // Update local state
+        const profile = await bookService.getProfile();
+        
+        // Update currently reading list
+        books = (profile.currentlyReading || []).map(item => ({
+            bookId: item.Book.bookId,
+            title: item.Book.title || 'Untitled',
+            author: item.Book.authors ? item.Book.authors[0] : 'Unknown Author',
+            thumbnail: item.Book.thumbnail || '',
+            progress: item.Book.progress ? item.Book.progress.percentage : 0,
+            totalPages: item.Book.totalPages || 1
+        }));
+
+        // Update read list
+        readList = profile.lists?.read || [];
+        
+        closeModal();
+    } catch (error) {
+        console.error('Error finishing book:', error);
+    } finally {
+        isFinishingBook = false;
+    }
+  }
 
   function handleLogout() {
     authService.logout();
@@ -214,8 +281,8 @@
       
       <!-- Grid Container -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {#each toBeReadList?.slice(0, 4) || [] as book} <!-- Show max 4 books -->
-              <div class="flex flex-col ">
+          {#each toBeReadList?.slice(0, 4) || [] as book}
+              <div class="flex flex-col">
                   <div class="relative w-full bg-gray-300 rounded-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105">
                       <img
                           src={book.thumbnail || 'default-cover-image-url'}
@@ -223,7 +290,13 @@
                           class="w-full h-64 sm:h-72 rounded-md md:h-80 lg:h-64 object-cover"
                       />
                   </div>
-                      <button class="w-full h-8 mt-4 bg-gray-100 rounded-full hover:bg-blue-500">Start Reading</button>
+                  <button 
+                      class="w-full h-8 mt-4 bg-gray-100 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                      on:click={() => startReading(book.bookId, 'toBeRead')}
+                      disabled={isStartingBook}
+                  >
+                      {isStartingBook ? 'Starting...' : 'Start Reading'}
+                  </button>
               </div>
           {/each}
           {#if (toBeReadList?.length || 0) >= 5}
@@ -243,8 +316,8 @@
       
       <!-- Grid Container -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {#each readList?.slice(0, 4) || [] as book} <!-- Show max 4 books -->
-              <div class="flex flex-col ">
+          {#each readList?.slice(0, 4) || [] as book}
+              <div class="flex flex-col">
                   <div class="relative rounded-lg bg-gray-300 shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 w-full">
                       <img
                           src={book.thumbnail || 'default-cover-image-url'}
@@ -272,7 +345,7 @@
           
           <!-- Grid Container -->
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-              {#each books.slice(0, 4) as book} <!-- Show max 4 books -->
+              {#each books.slice(0, 4) as book}
                   <div class="flex flex-col rounded-lg bg-gray-300 shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105">
                       <div class="relative w-full">
                           <img
@@ -362,6 +435,14 @@
               disabled={newPageCount === ''}
             >
               Update
+            </button>
+            <button 
+              type="button" 
+              class="mt-3 inline-flex w-full justify-center rounded-md bg-green-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:ml-3 sm:mt-0 sm:w-auto"
+              on:click={finishBook}
+              disabled={isFinishingBook}
+            >
+              {isFinishingBook ? 'Finishing...' : 'Finish Book'}
             </button>
             <button 
               type="button" 

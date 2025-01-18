@@ -46,6 +46,11 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 			}
 		}
 
+	case strings.HasPrefix(path, "/currently-reading/start-reading"):
+		response = handlers.StartReading(request)
+	case strings.HasPrefix(path, "/currently-reading/finish-reading"):
+		response = handlers.FinishReading(request)
+
 	case strings.HasPrefix(path, "/currently-reading"):
 		// Handle /currently-reading routes
 		switch method {
@@ -74,7 +79,7 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 		case "PUT":
 			response = handlers.UpdateListItem(request)
 		case "DELETE":
-			response = handlers.DeleteList(request)
+			response = handlers.DeleteListItem(request)
 		default:
 			response = events.APIGatewayProxyResponse{
 				StatusCode: 405,
