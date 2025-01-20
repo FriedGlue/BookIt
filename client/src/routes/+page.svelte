@@ -14,29 +14,40 @@
   let customLists: Record<string, any[]> = {};
   let isStartingBook = false;
   let isFinishingBook = false;
+  let searchQuery = '';
+  let searchResults: any[] = [];
+  let isSearching = false;
+  let showSearchResults = false;
+  let isAddingToList = false;
   
   const bookService = new BookService();
   const authService = new AuthService();
 
-  onMount(async () => {
-      try {
-          const profile = await bookService.getProfile();
+  onMount(() => {
+    // Fetch profile
+    (async () => {
+        try {
+            const profile = await bookService.getProfile();
+            books = (profile.currentlyReading || []).map(item => ({
+                bookId: item.Book.bookId,
+                title: item.Book.title || 'Untitled',
+                author: item.Book.authors ? item.Book.authors[0] : 'Unknown Author',
+                thumbnail: item.Book.thumbnail || '',
+                progress: item.Book.progress ? item.Book.progress.percentage : 0,
+                totalPages: item.Book.totalPages || 1
+            }));
 
-          books = (profile.currentlyReading || []).map(item => ({
-              bookId: item.Book.bookId,
-              title: item.Book.title || 'Untitled',
-              author: item.Book.authors ? item.Book.authors[0] : 'Unknown Author',
-              thumbnail: item.Book.thumbnail || '',
-              progress: item.Book.progress ? item.Book.progress.percentage : 0,
-              totalPages: item.Book.totalPages || 1
-          }));
+            toBeReadList = profile.lists?.toBeRead || [];
+            readList = profile.lists?.read || [];
+            customLists = profile.lists?.customLists || {};
+        } catch (error) {
+            console.error('Error fetching profile:', error);
+        }
+    })();
 
-          toBeReadList = profile.lists?.toBeRead || [];
-          readList = profile.lists?.read || [];
-          customLists = profile.lists?.customLists || {};
-      } catch (error) {
-          console.error('Error fetching profile:', error);
-      }
+    // Add click listener
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
   });
 
   function openModal(book: DisplayBook) {
@@ -155,6 +166,33 @@
   function handleLogout() {
     authService.logout();
   }
+
+  async function handleSearch() {
+    if (!searchQuery.trim()) {
+        searchResults = [];
+        showSearchResults = false;
+        return;
+    }
+
+    try {
+        isSearching = true;
+        searchResults = await bookService.searchBooks(searchQuery);
+        showSearchResults = true;
+    } catch (error) {
+        console.error('Error searching books:', error);
+        searchResults = [];
+    } finally {
+        isSearching = false;
+    }
+  }
+
+  function handleClickOutside(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.search-container')) {
+        showSearchResults = false;
+    }
+  }
+
 </script>
 
 <div class="flex flex-col min-h-screen">
@@ -163,7 +201,7 @@
 		<span class="text-6xl font-semibold tracking-tight">BookIt</span>
 	</div>
 	<div class="block w-full flex-grow lg:flex lg:w-auto lg:items-center">
-		<div class="text-lg lg:flex-grow">
+		<div class="text-lg lg:flex-grow flex items-center">
 			<a
 				href="#responsive-header"
 				class="mr-4 mt-4 block text-teal-200 hover:text-white lg:mt-0 lg:inline-block"
@@ -176,6 +214,59 @@
 			>
 				About
 			</a>
+			<div class="relative flex-grow max-w-xl ml-4">
+				<input
+					type="text"
+					bind:value={searchQuery}
+					on:input={() => handleSearch()}
+					placeholder="Search books..."
+					class="w-full px-4 py-2 text-gray-900 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400"
+				/>
+				{#if showSearchResults && searchResults.length > 0}
+					<div class="absolute z-50 w-full mt-2 bg-white rounded-lg shadow-xl max-h-96 overflow-y-auto">
+						{#each searchResults as book (book.bookId)}
+							<button 
+								type="button"
+								class="w-full p-4 hover:bg-gray-100 cursor-pointer flex items-center space-x-4 text-left"
+								on:click={async () => {
+									if (isAddingToList) return;
+									try {
+										isAddingToList = true;
+										await bookService.addToList(book.bookId, 'toBeRead');
+										const profile = await bookService.getProfile();
+										toBeReadList = profile.lists?.toBeRead || [];
+										showSearchResults = false;
+										searchQuery = '';
+									} catch (error) {
+										console.error('Error adding book to list:', error);
+									} finally {
+										isAddingToList = false;
+									}
+								}}
+								disabled={isAddingToList}
+								on:keydown={(e) => {
+									if (e.key === 'Enter' || e.key === ' ') {
+										e.preventDefault();
+										e.currentTarget.click();
+									}
+								}}
+							>
+								{#if isAddingToList}
+									<div class="w-12 h-16 flex items-center justify-center">
+										<div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+									</div>
+								{:else if book.thumbnail}
+									<img src={book.thumbnail} alt={book.title} class="w-12 h-16 object-cover" />
+								{/if}
+								<div>
+									<h3 class="text-gray-900 font-medium">{book.title}</h3>
+									<p class="text-gray-600 text-sm">{book.authors ? book.authors[0] : 'Unknown Author'}</p>
+								</div>
+							</button>
+						{/each}
+					</div>
+				{/if}
+			</div>
 		</div>
 		<div>
 			{#if $token}
@@ -281,13 +372,13 @@
       
       <!-- Grid Container -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {#each toBeReadList?.slice(0, 4) || [] as book}
+          {#each (toBeReadList?.slice(0, 4) || []).reverse() as book}
               <div class="flex flex-col">
                   <div class="relative w-full bg-gray-300 rounded-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105">
                       <img
                           src={book.thumbnail || 'default-cover-image-url'}
                           alt="Book Cover"
-                          class="w-full h-64 sm:h-72 rounded-md md:h-80 lg:h-64 object-cover"
+                          class="w-full h-64 sm:h-72 md:h-80 lg:h-64 rounded-lg"
                       />
                   </div>
                   <button 
@@ -316,13 +407,13 @@
       
       <!-- Grid Container -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {#each readList?.slice(0, 4) || [] as book}
+          {#each (readList?.slice(-4) || []).reverse() as book}
               <div class="flex flex-col">
                   <div class="relative rounded-lg bg-gray-300 shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 w-full">
                       <img
                           src={book.thumbnail || 'default-cover-image-url'}
                           alt="Book Cover"
-                          class="w-full rounded-lg h-64 sm:h-72 md:h-80 lg:h-64 object-cover"
+                          class="w-full h-64 sm:h-72 md:h-80 lg:h-64 rounded-lg"
                       />
                   </div>
               </div>
@@ -345,13 +436,13 @@
           
           <!-- Grid Container -->
           <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-              {#each books.slice(0, 4) as book}
+              {#each books.slice(0, 4).reverse() as book}
                   <div class="flex flex-col rounded-lg bg-gray-300 shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105">
                       <div class="relative w-full">
                           <img
                               src={book.thumbnail || 'default-cover-image-url'}
                               alt="Book Cover"
-                              class="w-full h-64 rounded-lg sm:h-72 md:h-80 lg:h-64 object-cover"
+                              class="w-full h-64 sm:h-72 md:h-80 lg:h-64 rounded-lg"
                           />
                       </div>
                   </div>

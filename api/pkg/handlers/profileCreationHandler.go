@@ -28,10 +28,10 @@ func GetProfile(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
-		return errorResponse(401, err.Error())
+		return shared.ErrorResponse(401, err.Error())
 	}
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(PROFILES_TABLE_NAME),
@@ -44,23 +44,23 @@ func GetProfile(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 	result, err := svc.GetItem(input)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 	}
 	if result.Item == nil {
 		log.Println("Profile not found")
-		return errorResponse(404, "Profile not found")
+		return shared.ErrorResponse(404, "Profile not found")
 	}
 
 	var profile models.Profile
 	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
 		log.Printf("Error unmarshalling profile: %v\n", err)
-		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
 	responseBody, err := json.Marshal(profile)
 	if err != nil {
 		log.Printf("Error marshalling response: %v\n", err)
-		return errorResponse(500, "Error marshalling profile response")
+		return shared.ErrorResponse(500, "Error marshalling profile response")
 	}
 
 	log.Println("Profile retrieval successful")
@@ -76,13 +76,13 @@ func CreateOrUpdateProfile(request events.APIGatewayProxyRequest) events.APIGate
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
-		return errorResponse(401, err.Error())
+		return shared.ErrorResponse(401, err.Error())
 	}
 
 	var incomingProfile models.Profile
 	if err := json.Unmarshal([]byte(request.Body), &incomingProfile); err != nil {
 		log.Printf("Invalid JSON: %v\n", err)
-		return errorResponse(400, "Invalid JSON: "+err.Error())
+		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
 	}
 
 	incomingProfile.ID = userId
@@ -91,10 +91,10 @@ func CreateOrUpdateProfile(request events.APIGatewayProxyRequest) events.APIGate
 	item, err := dynamodbattribute.MarshalMap(incomingProfile)
 	if err != nil {
 		log.Printf("Error marshalling profile: %v\n", err)
-		return errorResponse(500, "Error marshalling profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error marshalling profile: "+err.Error())
 	}
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 	input := &dynamodb.PutItemInput{
 		TableName: aws.String(PROFILES_TABLE_NAME),
 		Item:      item,
@@ -102,7 +102,7 @@ func CreateOrUpdateProfile(request events.APIGatewayProxyRequest) events.APIGate
 	_, err = svc.PutItem(input)
 	if err != nil {
 		log.Printf("DynamoDB PutItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
 	}
 
 	log.Printf("Profile created/updated for user %s\n", userId)
@@ -118,10 +118,10 @@ func DeleteProfile(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
-		return errorResponse(401, err.Error())
+		return shared.ErrorResponse(401, err.Error())
 	}
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 	input := &dynamodb.DeleteItemInput{
 		TableName: aws.String(PROFILES_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -132,7 +132,7 @@ func DeleteProfile(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 	_, err = svc.DeleteItem(input)
 	if err != nil {
 		log.Printf("DynamoDB DeleteItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB DeleteItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB DeleteItem error: %v", err))
 	}
 
 	log.Printf("Profile deleted for user %s\n", userId)

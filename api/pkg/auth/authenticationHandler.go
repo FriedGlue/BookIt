@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/FriedGlue/BookIt/api/pkg/shared"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -30,17 +31,20 @@ func newCognitoClient() *cognitoidentityprovider.CognitoIdentityProvider {
 // Request body (JSON): { "username":"...", "password":"...", "email":"..." }
 //
 
+// SignUpPayload represents the expected JSON structure for sign-up requests
+type SignUpPayload struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
+}
+
 func HandleSignUp(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
-	var payload struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-		Email    string `json:"email"`
-	}
+	var payload SignUpPayload
 	if err := json.Unmarshal([]byte(request.Body), &payload); err != nil {
-		return errorResponse(400, "Invalid JSON: "+err.Error())
+		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
 	}
 	if payload.Username == "" || payload.Password == "" || payload.Email == "" {
-		return errorResponse(400, "username, password, and email are required")
+		return shared.ErrorResponse(400, "username, password, and email are required")
 	}
 
 	cip := newCognitoClient()
@@ -58,7 +62,7 @@ func HandleSignUp(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 
 	_, err := cip.SignUp(input)
 	if err != nil {
-		return errorResponse(500, fmt.Sprintf("SignUp error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("SignUp error: %v", err))
 	}
 
 	return events.APIGatewayProxyResponse{
@@ -79,10 +83,10 @@ func HandleConfirmSignUp(request events.APIGatewayProxyRequest) events.APIGatewa
 		Code     string `json:"code"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &payload); err != nil {
-		return errorResponse(400, "Invalid JSON: "+err.Error())
+		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
 	}
 	if payload.Username == "" || payload.Code == "" {
-		return errorResponse(400, "username and code are required")
+		return shared.ErrorResponse(400, "username and code are required")
 	}
 
 	cip := newCognitoClient()
@@ -94,7 +98,7 @@ func HandleConfirmSignUp(request events.APIGatewayProxyRequest) events.APIGatewa
 
 	_, err := cip.ConfirmSignUp(input)
 	if err != nil {
-		return errorResponse(500, fmt.Sprintf("ConfirmSignUp error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("ConfirmSignUp error: %v", err))
 	}
 
 	return events.APIGatewayProxyResponse{
@@ -115,10 +119,10 @@ func HandleSignIn(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 		Password string `json:"password"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &payload); err != nil {
-		return errorResponse(400, "Invalid JSON: "+err.Error())
+		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
 	}
 	if payload.Username == "" || payload.Password == "" {
-		return errorResponse(400, "username and password are required")
+		return shared.ErrorResponse(400, "username and password are required")
 	}
 
 	cip := newCognitoClient()
@@ -133,11 +137,11 @@ func HandleSignIn(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 
 	output, err := cip.InitiateAuth(input)
 	if err != nil {
-		return errorResponse(401, fmt.Sprintf("SignIn error: %v", err))
+		return shared.ErrorResponse(401, fmt.Sprintf("SignIn error: %v", err))
 	}
 
 	if output.AuthenticationResult == nil {
-		return errorResponse(401, "No authentication result returned.")
+		return shared.ErrorResponse(401, "No authentication result returned.")
 	}
 
 	// Build a JSON response with the tokens
@@ -151,19 +155,5 @@ func HandleSignIn(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
 		Body:       string(body),
-	}
-}
-
-// errorResponse creates a formatted API Gateway error response.
-func errorResponse(status int, message string) events.APIGatewayProxyResponse {
-	body, _ := json.Marshal(map[string]string{
-		"error": message,
-	})
-	return events.APIGatewayProxyResponse{
-		StatusCode: status,
-		Body:       string(body),
-		Headers: map[string]string{
-			"Content-Type": "application/json",
-		},
 	}
 }

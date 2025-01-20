@@ -37,12 +37,12 @@ func GetList(request events.APIGatewayProxyRequest) events.APIGatewayProxyRespon
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
-		return errorResponse(401, err.Error())
+		return shared.ErrorResponse(401, err.Error())
 	}
 
 	listType := request.QueryStringParameters["listType"]
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(PROFILES_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -53,16 +53,16 @@ func GetList(request events.APIGatewayProxyRequest) events.APIGatewayProxyRespon
 	result, err := svc.GetItem(input)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 	}
 	if result.Item == nil {
-		return errorResponse(404, "Profile not found")
+		return shared.ErrorResponse(404, "Profile not found")
 	}
 
 	var profile models.Profile
 	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
 		log.Printf("Error unmarshalling profile: %v\n", err)
-		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
 	var responseBody []byte
@@ -88,14 +88,14 @@ func GetList(request events.APIGatewayProxyRequest) events.APIGatewayProxyRespon
 			if customList, exists := profile.Lists.CustomLists[listType]; exists {
 				responseBody, err = json.Marshal(customList)
 			} else {
-				return errorResponse(404, "List not found")
+				return shared.ErrorResponse(404, "List not found")
 			}
 		}
 	}
 
 	if err != nil {
 		log.Printf("Error marshalling response: %v\n", err)
-		return errorResponse(500, "Error marshalling response")
+		return shared.ErrorResponse(500, "Error marshalling response")
 	}
 
 	return events.APIGatewayProxyResponse{
@@ -110,17 +110,17 @@ func AddToList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResp
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
-		return errorResponse(401, err.Error())
+		return shared.ErrorResponse(401, err.Error())
 	}
 
 	var addReq AddToListRequest
 	if err := json.Unmarshal([]byte(request.Body), &addReq); err != nil {
 		log.Printf("Invalid JSON: %v\n", err)
-		return errorResponse(400, "Invalid JSON: "+err.Error())
+		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
 	}
 
 	// First get the book details from books table
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 	bookInput := &dynamodb.GetItemInput{
 		TableName: aws.String(BOOKS_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -131,17 +131,17 @@ func AddToList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResp
 	bookResult, err := svc.GetItem(bookInput)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error for book: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 	}
 	if bookResult.Item == nil {
 		log.Println("Book not found")
-		return errorResponse(404, "Book not found")
+		return shared.ErrorResponse(404, "Book not found")
 	}
 
 	var bookDetails BookData
 	if err := dynamodbattribute.UnmarshalMap(bookResult.Item, &bookDetails); err != nil {
 		log.Printf("Error unmarshalling book details: %v\n", err)
-		return errorResponse(500, "Error unmarshalling book details: "+err.Error())
+		return shared.ErrorResponse(500, "Error unmarshalling book details: "+err.Error())
 	}
 
 	// Get user profile
@@ -155,16 +155,16 @@ func AddToList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResp
 	result, err := svc.GetItem(profileInput)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 	}
 	if result.Item == nil {
-		return errorResponse(404, "Profile not found")
+		return shared.ErrorResponse(404, "Profile not found")
 	}
 
 	var profile models.Profile
 	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
 		log.Printf("Error unmarshalling profile: %v\n", err)
-		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
 	currentTime := time.Now().Format(time.RFC3339)
@@ -204,7 +204,7 @@ func AddToList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResp
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
 		log.Printf("Error marshalling updated profile: %v\n", err)
-		return errorResponse(500, "Error marshalling updated profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error marshalling updated profile: "+err.Error())
 	}
 
 	putInput := &dynamodb.PutItemInput{
@@ -215,7 +215,7 @@ func AddToList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResp
 	_, err = svc.PutItem(putInput)
 	if err != nil {
 		log.Printf("DynamoDB PutItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
 	}
 
 	return events.APIGatewayProxyResponse{
@@ -230,16 +230,16 @@ func UpdateListItem(request events.APIGatewayProxyRequest) events.APIGatewayProx
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
-		return errorResponse(401, err.Error())
+		return shared.ErrorResponse(401, err.Error())
 	}
 
 	var updateReq UpdateListItemRequest
 	if err := json.Unmarshal([]byte(request.Body), &updateReq); err != nil {
 		log.Printf("Invalid JSON: %v\n", err)
-		return errorResponse(400, "Invalid JSON: "+err.Error())
+		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
 	}
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(PROFILES_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -250,16 +250,16 @@ func UpdateListItem(request events.APIGatewayProxyRequest) events.APIGatewayProx
 	result, err := svc.GetItem(input)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 	}
 	if result.Item == nil {
-		return errorResponse(404, "Profile not found")
+		return shared.ErrorResponse(404, "Profile not found")
 	}
 
 	var profile models.Profile
 	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
 		log.Printf("Error unmarshalling profile: %v\n", err)
-		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
 	found := false
@@ -306,13 +306,13 @@ func UpdateListItem(request events.APIGatewayProxyRequest) events.APIGatewayProx
 	}
 
 	if !found {
-		return errorResponse(404, "Book not found in the specified list")
+		return shared.ErrorResponse(404, "Book not found in the specified list")
 	}
 
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
 		log.Printf("Error marshalling updated profile: %v\n", err)
-		return errorResponse(500, "Error marshalling updated profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error marshalling updated profile: "+err.Error())
 	}
 
 	putInput := &dynamodb.PutItemInput{
@@ -323,7 +323,7 @@ func UpdateListItem(request events.APIGatewayProxyRequest) events.APIGatewayProx
 	_, err = svc.PutItem(putInput)
 	if err != nil {
 		log.Printf("DynamoDB PutItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
 	}
 
 	return events.APIGatewayProxyResponse{
@@ -338,15 +338,15 @@ func DeleteList(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
-		return errorResponse(401, err.Error())
+		return shared.ErrorResponse(401, err.Error())
 	}
 
 	listName := request.QueryStringParameters["listName"]
 	if listName == "" {
-		return errorResponse(400, "listName parameter is required")
+		return shared.ErrorResponse(400, "listName parameter is required")
 	}
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(PROFILES_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -357,20 +357,20 @@ func DeleteList(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 	result, err := svc.GetItem(input)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 	}
 	if result.Item == nil {
-		return errorResponse(404, "Profile not found")
+		return shared.ErrorResponse(404, "Profile not found")
 	}
 
 	var profile models.Profile
 	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
 		log.Printf("Error unmarshalling profile: %v\n", err)
-		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
 	if _, exists := profile.Lists.CustomLists[listName]; !exists {
-		return errorResponse(404, "List not found")
+		return shared.ErrorResponse(404, "List not found")
 	}
 
 	delete(profile.Lists.CustomLists, listName)
@@ -378,7 +378,7 @@ func DeleteList(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
 		log.Printf("Error marshalling updated profile: %v\n", err)
-		return errorResponse(500, "Error marshalling updated profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error marshalling updated profile: "+err.Error())
 	}
 
 	putInput := &dynamodb.PutItemInput{
@@ -389,7 +389,7 @@ func DeleteList(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 	_, err = svc.PutItem(putInput)
 	if err != nil {
 		log.Printf("DynamoDB PutItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
 	}
 
 	return events.APIGatewayProxyResponse{
@@ -404,16 +404,16 @@ func DeleteListItem(request events.APIGatewayProxyRequest) events.APIGatewayProx
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
-		return errorResponse(401, err.Error())
+		return shared.ErrorResponse(401, err.Error())
 	}
 
 	listType := request.QueryStringParameters["listType"]
 	bookId := request.QueryStringParameters["bookId"]
 	if listType == "" || bookId == "" {
-		return errorResponse(400, "listType and bookId parameters are required")
+		return shared.ErrorResponse(400, "listType and bookId parameters are required")
 	}
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(PROFILES_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -424,16 +424,16 @@ func DeleteListItem(request events.APIGatewayProxyRequest) events.APIGatewayProx
 	result, err := svc.GetItem(input)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 	}
 	if result.Item == nil {
-		return errorResponse(404, "Profile not found")
+		return shared.ErrorResponse(404, "Profile not found")
 	}
 
 	var profile models.Profile
 	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
 		log.Printf("Error unmarshalling profile: %v\n", err)
-		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
 	// Initialize lists if they don't exist
@@ -469,13 +469,13 @@ func DeleteListItem(request events.APIGatewayProxyRequest) events.APIGatewayProx
 	}
 
 	if !found {
-		return errorResponse(404, "Book not found in the specified list")
+		return shared.ErrorResponse(404, "Book not found in the specified list")
 	}
 
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
 		log.Printf("Error marshalling updated profile: %v\n", err)
-		return errorResponse(500, "Error marshalling updated profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error marshalling updated profile: "+err.Error())
 	}
 
 	putInput := &dynamodb.PutItemInput{
@@ -486,7 +486,7 @@ func DeleteListItem(request events.APIGatewayProxyRequest) events.APIGatewayProx
 	_, err = svc.PutItem(putInput)
 	if err != nil {
 		log.Printf("DynamoDB PutItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
 	}
 
 	return events.APIGatewayProxyResponse{

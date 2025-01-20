@@ -55,15 +55,34 @@ Resources:
   # DynamoDB Table: "BooksTable"  
   #####################################
   BooksTable:
-    Type: AWS::Serverless::SimpleTable
+    Type: AWS::DynamoDB::Table
     Properties:
-      TableName: BooksTable
-      PrimaryKey:
-        Name: bookId 
-        Type: String 
-      ProvisionedThroughput:
-        ReadCapacityUnits: 5
-        WriteCapacityUnits: 5
+      TableName: BookDataTable
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: bookId
+          AttributeType: S
+        - AttributeName: titleLowercase
+          AttributeType: S
+        - AttributeName: isbn13
+          AttributeType: S
+      KeySchema:
+        - AttributeName: bookId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: TitleIndex
+          KeySchema:
+            - AttributeName: titleLowercase
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: ISBNIndex
+          KeySchema:
+            - AttributeName: isbn13
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
 
   #####################################
   # DynamoDB Table: "Profiles"
@@ -109,7 +128,9 @@ Resources:
               - dynamodb:UpdateItem
               - dynamodb:DeleteItem
               - dynamodb:Query
-            Resource: !GetAtt BooksTable.Arn
+            Resource: 
+              - !GetAtt BooksTable.Arn
+              - !Sub "${BooksTable.Arn}/index/*"
 
         - Statement:
             Effect: Allow
@@ -133,11 +154,18 @@ Resources:
             Path: /books
             Method: ANY
 
-        BookitApiEventWithISBN:
+        BookitApiEventWithBookId:
           Type: Api
           Properties:
             RestApiId: !Ref BookitApi
-            Path: /books/{isbn}
+            Path: /books/{bookId}
+            Method: ANY
+
+        BookitApiEventWithSearch:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BookitApi
+            Path: /books/search
             Method: ANY
 
         # Profile routes

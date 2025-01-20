@@ -3,17 +3,16 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"strings"
-	"time"
 
+	"github.com/FriedGlue/BookIt/api/pkg/shared"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
+	"github.com/google/uuid"
 )
 
 // For this example, we'll call our DynamoDB table "Books"
@@ -21,21 +20,15 @@ import (
 
 // Book represents a single book record in DynamoDB.
 type BookData struct {
-	ISBN            string   `json:"isbn"` // Partition key
-	BookID          string   `json:"bookId,omitempty"`
-	Title           string   `json:"title,omitempty"`
-	PageCount       int      `json:"pageCount,omitempty"`
-	Authors         []string `json:"authors,omitempty"`
-	PublicationDate string   `json:"publicationDate,omitempty"`
-	CoverImageURL   string   `json:"coverImageUrl,omitempty"`
-	Tags            []string `json:"tags,omitempty"`
-	// Add other fields as desired (genres, mood, pace, etc.)
-}
-
-// DynamoDBClient initializes a DynamoDB client session.
-func DynamoDBClient() *dynamodb.DynamoDB {
-	sess := session.Must(session.NewSession())
-	return dynamodb.New(sess)
+	BookID         string   `json:"bookId"`
+	ISBN10         string   `json:"isbn10,omitempty"`
+	ISBN13         string   `json:"isbn13,omitempty"`
+	Title          string   `json:"title,omitempty"`
+	TitleLowercase string   `json:"titleLowercase,omitempty"`
+	Authors        []string `json:"authors,omitempty"`
+	PageCount      int      `json:"pageCount,omitempty"`
+	CoverImageURL  string   `json:"coverImageUrl,omitempty"`
+	Tags           []string `json:"tags,omitempty"`
 }
 
 // ===============================
@@ -112,14 +105,18 @@ func FetchBookFromOpenLibrary(isbn string) (BookData, error) {
 		subjects = append(subjects, s.Name)
 	}
 
+	// Generate a unique BookID using UUID
+	bookId := uuid.New().String()
+
 	b := BookData{
-		ISBN:            isbn,
-		Title:           olData.Title,
-		Authors:         authors,
-		PageCount:       olData.NumberOfPages,
-		PublicationDate: olData.PublishDate,
-		CoverImageURL:   coverURL,
-		Tags:            subjects,
+		BookID:         bookId,
+		ISBN13:         isbn,
+		Title:          olData.Title,
+		TitleLowercase: strings.ToLower(olData.Title),
+		Authors:        authors,
+		PageCount:      olData.NumberOfPages,
+		CoverImageURL:  coverURL,
+		Tags:           subjects,
 	}
 	return b, nil
 }
@@ -133,7 +130,7 @@ func FetchBookFromOpenLibrary(isbn string) (BookData, error) {
 //   - If no ISBN is provided, do a scan or handle accordingly (not recommended at large scale).
 func GetBooks(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
 	bookId, hasBookId := request.PathParameters["isbn"]
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 
 	if hasBookId && bookId != "" {
 		// Retrieve a single book by primary key
@@ -145,16 +142,16 @@ func GetBooks(request events.APIGatewayProxyRequest) events.APIGatewayProxyRespo
 		}
 		result, err := svc.GetItem(getInput)
 		if err != nil {
-			return errorResponse(500, "Error retrieving book: "+err.Error())
+			return shared.ErrorResponse(500, "Error retrieving book: "+err.Error())
 		}
 		if result.Item == nil {
-			return errorResponse(404, "Book not found")
+			return shared.ErrorResponse(404, "Book not found")
 		}
 
 		var book BookData
 		err = dynamodbattribute.UnmarshalMap(result.Item, &book)
 		if err != nil {
-			return errorResponse(500, "Error unmarshalling book: "+err.Error())
+			return shared.ErrorResponse(500, "Error unmarshalling book: "+err.Error())
 		}
 
 		bytes, _ := json.Marshal(book)
@@ -171,16 +168,16 @@ func GetBooks(request events.APIGatewayProxyRequest) events.APIGatewayProxyRespo
 	}
 	scanRes, err := svc.Scan(scanInput)
 	if err != nil {
-		return errorResponse(500, "Scan error: "+err.Error())
+		return shared.ErrorResponse(500, "Scan error: "+err.Error())
 	}
 	if len(scanRes.Items) == 0 {
-		return errorResponse(404, "No books found")
+		return shared.ErrorResponse(404, "No books found")
 	}
 
 	var books []BookData
 	err = dynamodbattribute.UnmarshalListOfMaps(scanRes.Items, &books)
 	if err != nil {
-		return errorResponse(500, "Error unmarshalling items: "+err.Error())
+		return shared.ErrorResponse(500, "Error unmarshalling items: "+err.Error())
 	}
 
 	bytes, _ := json.Marshal(books)
@@ -200,93 +197,100 @@ func CreateBook(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 	}
 
 	if err := json.Unmarshal([]byte(request.Body), &input); err != nil {
-		return errorResponse(400, "Invalid JSON request: "+err.Error())
+		return shared.ErrorResponse(400, "Invalid JSON request: "+err.Error())
 	}
 	if strings.TrimSpace(input.ISBN) == "" {
-		return errorResponse(400, "ISBN is required in POST body")
+		return shared.ErrorResponse(400, "ISBN is required in POST body")
 	}
 
 	// 1) Fetch data from Open Library
 	book, err := FetchBookFromOpenLibrary(input.ISBN)
 	if err != nil {
-		return errorResponse(500, "Failed to fetch from Open Library: "+err.Error())
+		return shared.ErrorResponse(500, "Failed to fetch from Open Library: "+err.Error())
 	}
-
-	temp := rand.New(rand.NewSource(time.Now().UnixNano()))
-	book.BookID = fmt.Sprintf("%d", temp.Int())
 
 	// 2) Store in DynamoDB
 	av, err := dynamodbattribute.MarshalMap(book)
 	if err != nil {
-		return errorResponse(500, "Error marshalling book data: "+err.Error())
+		return shared.ErrorResponse(500, "Error marshalling book data: "+err.Error())
 	}
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 	putInput := &dynamodb.PutItemInput{
 		TableName: aws.String(BOOKS_TABLE_NAME),
 		Item:      av,
 	}
 	_, err = svc.PutItem(putInput)
 	if err != nil {
-		return errorResponse(500, "DynamoDB PutItem error: "+err.Error())
+		return shared.ErrorResponse(500, "DynamoDB PutItem error: "+err.Error())
 	}
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
-		Body:       fmt.Sprintf("Book with ISBN %s created successfully", book.ISBN),
+		Body:       fmt.Sprintf("Book with ISBN %s created successfully", book.ISBN13),
 	}
 }
 
-// NEEDS TO BE UPDATED TO USE BOOK ID
-
-// 3. PUT /books/{isbn}
+// 3. PUT /books/{bookId}
 //   - The request body can contain partial updates.
-//   - We’ll demonstrate using a DynamoDB UpdateItem with an expression builder.
+//   - We'll demonstrate using a DynamoDB UpdateItem with an expression builder.
 func UpdateBook(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
-	isbn, hasISBN := request.PathParameters["isbn"]
-	if !hasISBN || isbn == "" {
-		return errorResponse(400, "Missing path parameter: isbn")
+	bookId, hasBookId := request.PathParameters["bookId"]
+	if !hasBookId || bookId == "" {
+		return shared.ErrorResponse(400, "Missing path parameter: bookId")
 	}
 
-	// This struct can contain any fields you want to allow updating
+	// This struct matches the updatable fields in BookData
 	var updates struct {
-		Title           *string   `json:"title,omitempty"`
-		Authors         *[]string `json:"authors,omitempty"`
-		PageCount       *int      `json:"pageCount,omitempty"`
-		PublicationDate *string   `json:"publicationDate,omitempty"`
-		CoverImageURL   *string   `json:"coverImageUrl,omitempty"`
-		Tags            *[]string `json:"tags,omitempty"`
+		ISBN10        *string   `json:"isbn10,omitempty"`
+		ISBN13        *string   `json:"isbn13,omitempty"`
+		Title         *string   `json:"title,omitempty"`
+		Authors       *[]string `json:"authors,omitempty"`
+		PageCount     *int      `json:"pageCount,omitempty"`
+		CoverImageURL *string   `json:"coverImageUrl,omitempty"`
+		Tags          *[]string `json:"tags,omitempty"`
 	}
 
 	if err := json.Unmarshal([]byte(request.Body), &updates); err != nil {
-		return errorResponse(400, "Invalid JSON request: "+err.Error())
+		return shared.ErrorResponse(400, "Invalid JSON request: "+err.Error())
 	}
 
 	// Convert partial updates to map
 	updateMap, err := dynamodbattribute.MarshalMap(updates)
 	if err != nil {
-		return errorResponse(500, "Error marshalling update data: "+err.Error())
+		return shared.ErrorResponse(500, "Error marshalling update data: "+err.Error())
 	}
 
 	// Build update expression
 	updateBuilder := expression.UpdateBuilder{}
 	for key, val := range updateMap {
-		// If val is not null, set in expression
 		if val.NULL == nil {
-			updateBuilder = updateBuilder.Set(expression.Name(key), expression.Value(val))
+			// Special handling for title to also update titleLowercase
+			if key == "title" {
+				updateBuilder = updateBuilder.Set(expression.Name(key), expression.Value(val))
+				// Add titleLowercase field update
+				if val.S != nil {
+					updateBuilder = updateBuilder.Set(
+						expression.Name("titleLowercase"),
+						expression.Value(strings.ToLower(*val.S)),
+					)
+				}
+			} else {
+				updateBuilder = updateBuilder.Set(expression.Name(key), expression.Value(val))
+			}
 		}
 	}
 
 	expr, err := expression.NewBuilder().WithUpdate(updateBuilder).Build()
 	if err != nil {
-		return errorResponse(500, "Error building expression: "+err.Error())
+		return shared.ErrorResponse(500, "Error building expression: "+err.Error())
 	}
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 	input := &dynamodb.UpdateItemInput{
 		TableName: aws.String(BOOKS_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
-			"bookId": {S: aws.String(isbn)},
+			"bookId": {S: aws.String(bookId)},
 		},
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
@@ -296,12 +300,12 @@ func UpdateBook(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 
 	_, err = svc.UpdateItem(input)
 	if err != nil {
-		return errorResponse(500, "Error updating book: "+err.Error())
+		return shared.ErrorResponse(500, "Error updating book: "+err.Error())
 	}
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
-		Body:       fmt.Sprintf("Book with ISBN %s updated successfully", isbn),
+		Body:       fmt.Sprintf("Book with ID %s updated successfully", bookId),
 	}
 }
 
@@ -309,10 +313,10 @@ func UpdateBook(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 func DeleteBook(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
 	isbn, hasISBN := request.QueryStringParameters["isbn"]
 	if !hasISBN || isbn == "" {
-		return errorResponse(400, "Missing query string parameter: isbn")
+		return shared.ErrorResponse(400, "Missing query string parameter: isbn")
 	}
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 	input := &dynamodb.DeleteItemInput{
 		TableName: aws.String("Books"),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -322,23 +326,11 @@ func DeleteBook(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 
 	_, err := svc.DeleteItem(input)
 	if err != nil {
-		return errorResponse(500, "Error deleting book: "+err.Error())
+		return shared.ErrorResponse(500, "Error deleting book: "+err.Error())
 	}
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
 		Body:       fmt.Sprintf("Book with ISBN %s deleted successfully", isbn),
-	}
-}
-
-// ===============================
-//  Utility Functions
-// ===============================
-
-// errorResponse is a helper to generate an APIGatewayProxyResponse with a given status and message.
-func errorResponse(status int, message string) events.APIGatewayProxyResponse {
-	return events.APIGatewayProxyResponse{
-		StatusCode: status,
-		Body:       message,
 	}
 }

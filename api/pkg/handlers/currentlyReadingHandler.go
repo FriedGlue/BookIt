@@ -24,10 +24,10 @@ func GetCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGatewa
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
-		return errorResponse(401, err.Error())
+		return shared.ErrorResponse(401, err.Error())
 	}
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 	input := &dynamodb.GetItemInput{
 		TableName: aws.String(PROFILES_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -39,23 +39,23 @@ func GetCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGatewa
 	result, err := svc.GetItem(input)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 	}
 	if result.Item == nil {
 		log.Println("Profile not found")
-		return errorResponse(404, "Profile not found")
+		return shared.ErrorResponse(404, "Profile not found")
 	}
 
 	var profile models.Profile
 	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
 		log.Printf("Error unmarshalling profile: %v\n", err)
-		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
 	responseBody, err := json.Marshal(profile.CurrentlyReading)
 	if err != nil {
 		log.Printf("Error marshalling response: %v\n", err)
-		return errorResponse(500, "Error marshalling currently reading response")
+		return shared.ErrorResponse(500, "Error marshalling currently reading response")
 	}
 
 	log.Println("Currently reading list retrieval successful")
@@ -76,16 +76,16 @@ func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGate
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
-		return errorResponse(401, err.Error())
+		return shared.ErrorResponse(401, err.Error())
 	}
 
 	var newCurrentlyReadingItemRequest newCurrentlyReadingItemRequest
 	if err := json.Unmarshal([]byte(request.Body), &newCurrentlyReadingItemRequest); err != nil {
 		log.Printf("Invalid JSON: %v\n", err)
-		return errorResponse(400, "Invalid JSON: "+err.Error())
+		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
 	}
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 	getInput := &dynamodb.GetItemInput{
 		TableName: aws.String(PROFILES_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -96,17 +96,17 @@ func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGate
 	result, err := svc.GetItem(getInput)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 	}
 	if result.Item == nil {
 		log.Println("Profile not found")
-		return errorResponse(404, "Profile not found")
+		return shared.ErrorResponse(404, "Profile not found")
 	}
 
 	var profile models.Profile
 	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
 		log.Printf("Error unmarshalling profile: %v\n", err)
-		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
 	found := false
@@ -118,7 +118,7 @@ func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGate
 	}
 
 	if found {
-		return errorResponse(409, "Book already in currently reading list")
+		return shared.ErrorResponse(409, "Book already in currently reading list")
 	}
 
 	var bookDetails BookData
@@ -133,22 +133,22 @@ func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGate
 		bookResult, err := svc.GetItem(getBookInput)
 		if err != nil {
 			log.Printf("DynamoDB GetItem error: %v\n", err)
-			return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+			return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 		}
 		if bookResult.Item == nil {
 			log.Println("Book not found")
-			return errorResponse(404, "Book not found")
+			return shared.ErrorResponse(404, "Book not found")
 		}
 		if err := dynamodbattribute.UnmarshalMap(bookResult.Item, &bookDetails); err != nil {
 			log.Printf("Error unmarshalling book details: %v\n", err)
-			return errorResponse(500, "Error unmarshalling book details: "+err.Error())
+			return shared.ErrorResponse(500, "Error unmarshalling book details: "+err.Error())
 		}
 	} else {
 		// If the book ID is not provided, we need to fetch the book details from the openlibrary API
 		bookDetails, err = FetchBookFromOpenLibrary(newCurrentlyReadingItemRequest.ISBN)
 		if err != nil {
 			log.Printf("Error fetching book details: %v\n", err)
-			return errorResponse(500, "Error fetching book details: "+err.Error())
+			return shared.ErrorResponse(500, "Error fetching book details: "+err.Error())
 		}
 	}
 
@@ -156,7 +156,7 @@ func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGate
 	temp := rand.New(rand.NewSource(time.Now().UnixNano()))
 	book := models.Book{
 		BookID:     fmt.Sprintf("%d", temp.Int()),
-		ISBN:       bookDetails.ISBN,
+		ISBN:       bookDetails.ISBN13,
 		Title:      bookDetails.Title,
 		Authors:    bookDetails.Authors,
 		Thumbnail:  bookDetails.CoverImageURL,
@@ -177,7 +177,7 @@ func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGate
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
 		log.Printf("Error marshalling updated profile: %v\n", err)
-		return errorResponse(500, "Error marshalling updated profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error marshalling updated profile: "+err.Error())
 	}
 
 	putInput := &dynamodb.PutItemInput{
@@ -187,7 +187,7 @@ func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGate
 	_, err = svc.PutItem(putInput)
 	if err != nil {
 		log.Printf("DynamoDB PutItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
 	}
 
 	log.Printf("Book added to currently reading for user %s\n", userId)
@@ -213,7 +213,7 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
-		return errorResponse(401, err.Error())
+		return shared.ErrorResponse(401, err.Error())
 	}
 	log.Printf("Extracted userId: %s\n", userId)
 
@@ -221,11 +221,11 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 	var updateReq updateCurrentlyReadingRequest
 	if err := json.Unmarshal([]byte(request.Body), &updateReq); err != nil {
 		log.Printf("Invalid JSON in request body: %v\n", err)
-		return errorResponse(400, "Invalid JSON: "+err.Error())
+		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
 	}
 	log.Printf("Parsed update request: %+v\n", updateReq)
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 
 	// Get the current profile from DynamoDB
 	getInput := &dynamodb.GetItemInput{
@@ -238,11 +238,11 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 	result, err := svc.GetItem(getInput)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 	}
 	if result.Item == nil {
 		log.Println("Profile not found")
-		return errorResponse(404, "Profile not found")
+		return shared.ErrorResponse(404, "Profile not found")
 	}
 	log.Printf("Profile retrieved: %v\n", result.Item)
 
@@ -250,7 +250,7 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 	var profile models.Profile
 	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
 		log.Printf("Error unmarshalling profile: %v\n", err)
-		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 	log.Printf("Unmarshalled profile: %+v\n", profile)
 
@@ -268,13 +268,13 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 
 	if !found {
 		log.Printf("Book with ISBN %s or BookID %s not found in currently reading list\n", updateReq.ISBN, updateReq.BookID)
-		return errorResponse(404, "Book not found in currently reading list")
+		return shared.ErrorResponse(404, "Book not found in currently reading list")
 	}
 
 	// Calculate new progress percentage
 	if storedBook.Book.TotalPages == 0 {
 		log.Printf("TotalPages for book is 0, cannot calculate progress percentage\n")
-		return errorResponse(400, "Book total pages cannot be zero")
+		return shared.ErrorResponse(400, "Book total pages cannot be zero")
 	}
 	newProgressPercentage := math.Floor(
 		float64(updateReq.CurrentPage) / float64(storedBook.Book.TotalPages) * 100,
@@ -301,7 +301,7 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
 		log.Printf("Error marshalling updated profile: %v\n", err)
-		return errorResponse(500, "Error marshalling updated profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error marshalling updated profile: "+err.Error())
 	}
 	log.Printf("Marshalled updated profile: %v\n", updatedProfile)
 
@@ -313,7 +313,7 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 	_, err = svc.PutItem(putInput)
 	if err != nil {
 		log.Printf("DynamoDB PutItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
 	}
 	log.Printf("Successfully updated book progress in DynamoDB for user %s\n", userId)
 
@@ -329,16 +329,16 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
-		return errorResponse(401, err.Error())
+		return shared.ErrorResponse(401, err.Error())
 	}
 
 	bookId := request.QueryStringParameters["bookId"]
 	isbn := request.QueryStringParameters["isbn"]
 	if bookId == "" && isbn == "" {
-		return errorResponse(400, "bookId or isbn query parameter are required")
+		return shared.ErrorResponse(400, "bookId or isbn query parameter are required")
 	}
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 	getInput := &dynamodb.GetItemInput{
 		TableName: aws.String(PROFILES_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -349,17 +349,17 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 	result, err := svc.GetItem(getInput)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 	}
 	if result.Item == nil {
 		log.Println("Profile not found")
-		return errorResponse(404, "Profile not found")
+		return shared.ErrorResponse(404, "Profile not found")
 	}
 
 	var profile models.Profile
 	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
 		log.Printf("Error unmarshalling profile: %v\n", err)
-		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
 	index := -1
@@ -372,7 +372,7 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 
 	if index == -1 {
 		log.Printf("Book not found in currently reading list for user %s\n", userId)
-		return errorResponse(404, "Book not found in currently reading list")
+		return shared.ErrorResponse(404, "Book not found in currently reading list")
 	}
 
 	profile.CurrentlyReading = append(profile.CurrentlyReading[:index], profile.CurrentlyReading[index+1:]...)
@@ -380,7 +380,7 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
 		log.Printf("Error marshalling updated profile: %v\n", err)
-		return errorResponse(500, "Error marshalling updated profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error marshalling updated profile: "+err.Error())
 	}
 
 	putInput := &dynamodb.PutItemInput{
@@ -390,7 +390,7 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 	_, err = svc.PutItem(putInput)
 	if err != nil {
 		log.Printf("DynamoDB PutItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
 	}
 
 	log.Printf("Book removed from currently reading for user %s\n", userId)
@@ -412,23 +412,23 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
-		return errorResponse(401, err.Error())
+		return shared.ErrorResponse(401, err.Error())
 	}
 
 	var startReq StartReadingRequest
 	if err := json.Unmarshal([]byte(request.Body), &startReq); err != nil {
 		log.Printf("Invalid JSON: %v\n", err)
-		return errorResponse(400, "Invalid JSON: "+err.Error())
+		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
 	}
 
 	if startReq.BookID == "" {
-		return errorResponse(400, "bookId is required")
+		return shared.ErrorResponse(400, "bookId is required")
 	}
 	if startReq.ListName == "" {
-		return errorResponse(400, "listName is required")
+		return shared.ErrorResponse(400, "listName is required")
 	}
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 	getInput := &dynamodb.GetItemInput{
 		TableName: aws.String(PROFILES_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -439,17 +439,17 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 	result, err := svc.GetItem(getInput)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 	}
 	if result.Item == nil {
 		log.Println("Profile not found")
-		return errorResponse(404, "Profile not found")
+		return shared.ErrorResponse(404, "Profile not found")
 	}
 
 	var profile models.Profile
 	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
 		log.Printf("Error unmarshalling profile: %v\n", err)
-		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
 	// Find and remove the book from the specified list
@@ -485,7 +485,7 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 	}
 
 	if !found {
-		return errorResponse(404, fmt.Sprintf("Book not found in %s list", startReq.ListName))
+		return shared.ErrorResponse(404, fmt.Sprintf("Book not found in %s list", startReq.ListName))
 	}
 
 	// Get book details from the Books table
@@ -498,24 +498,24 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 	bookResult, err := svc.GetItem(getBookInput)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 	}
 	if bookResult.Item == nil {
 		log.Println("Book not found")
-		return errorResponse(404, "Book not found")
+		return shared.ErrorResponse(404, "Book not found")
 	}
 
 	var bookDetails BookData
 	if err := dynamodbattribute.UnmarshalMap(bookResult.Item, &bookDetails); err != nil {
 		log.Printf("Error unmarshalling book details: %v\n", err)
-		return errorResponse(500, "Error unmarshalling book details: "+err.Error())
+		return shared.ErrorResponse(500, "Error unmarshalling book details: "+err.Error())
 	}
 
 	// Create a new currently reading item
 	currentlyReadingItem := models.CurrentlyReadingItem{
 		Book: models.Book{
 			BookID:     bookDetails.BookID,
-			ISBN:       bookDetails.ISBN,
+			ISBN:       bookDetails.ISBN13,
 			Title:      bookDetails.Title,
 			Authors:    bookDetails.Authors,
 			Thumbnail:  bookDetails.CoverImageURL,
@@ -536,7 +536,7 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
 		log.Printf("Error marshalling updated profile: %v\n", err)
-		return errorResponse(500, "Error marshalling updated profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error marshalling updated profile: "+err.Error())
 	}
 
 	putInput := &dynamodb.PutItemInput{
@@ -546,7 +546,7 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 	_, err = svc.PutItem(putInput)
 	if err != nil {
 		log.Printf("DynamoDB PutItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
 	}
 
 	log.Printf("Book moved to currently reading from %s list for user %s\n", startReq.ListName, userId)
@@ -567,20 +567,20 @@ func FinishReading(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
-		return errorResponse(401, err.Error())
+		return shared.ErrorResponse(401, err.Error())
 	}
 
 	var finishReq FinishReadingRequest
 	if err := json.Unmarshal([]byte(request.Body), &finishReq); err != nil {
 		log.Printf("Invalid JSON: %v\n", err)
-		return errorResponse(400, "Invalid JSON: "+err.Error())
+		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
 	}
 
 	if finishReq.BookID == "" {
-		return errorResponse(400, "bookId is required")
+		return shared.ErrorResponse(400, "bookId is required")
 	}
 
-	svc := DynamoDBClient()
+	svc := shared.DynamoDBClient()
 	getInput := &dynamodb.GetItemInput{
 		TableName: aws.String(PROFILES_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -591,17 +591,17 @@ func FinishReading(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 	result, err := svc.GetItem(getInput)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 	}
 	if result.Item == nil {
 		log.Println("Profile not found")
-		return errorResponse(404, "Profile not found")
+		return shared.ErrorResponse(404, "Profile not found")
 	}
 
 	var profile models.Profile
 	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
 		log.Printf("Error unmarshalling profile: %v\n", err)
-		return errorResponse(500, "Error unmarshalling profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
 	// Find and remove the book from currently reading
@@ -617,7 +617,7 @@ func FinishReading(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 	}
 
 	if !found {
-		return errorResponse(404, "Book not found in currently reading list")
+		return shared.ErrorResponse(404, "Book not found in currently reading list")
 	}
 
 	// Create a new read item
@@ -640,7 +640,7 @@ func FinishReading(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
 		log.Printf("Error marshalling updated profile: %v\n", err)
-		return errorResponse(500, "Error marshalling updated profile: "+err.Error())
+		return shared.ErrorResponse(500, "Error marshalling updated profile: "+err.Error())
 	}
 
 	putInput := &dynamodb.PutItemInput{
@@ -650,7 +650,7 @@ func FinishReading(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 	_, err = svc.PutItem(putInput)
 	if err != nil {
 		log.Printf("DynamoDB PutItem error: %v\n", err)
-		return errorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
 	}
 
 	log.Printf("Book moved to read list for user %s\n", userId)

@@ -28,6 +28,9 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 	method := request.HTTPMethod
 
 	switch {
+	case path == "/books/search" && method == "GET":
+		response = handlers.SearchBooks(request)
+
 	case strings.HasPrefix(path, "/books"):
 		// Handle /books routes
 		switch method {
