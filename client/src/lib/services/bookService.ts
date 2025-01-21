@@ -44,7 +44,18 @@ export class BookService {
         }
     }
 
-    async deleteBook(bookId: string): Promise<void> {
+    async removeFromList(bookId: string, listType: string): Promise<void> {
+        const response = await fetch(`${PUBLIC_API_BASE_URL}/list?listType=${listType}&bookId=${bookId}`, {
+            method: "DELETE",
+            headers: this.getHeaders()
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete book');
+        }
+    }
+
+    async removeFromCurrentlyReading(bookId: string): Promise<void> {
         const response = await fetch(`${PUBLIC_API_BASE_URL}/currently-reading?bookId=${bookId}`, {
             method: "DELETE",
             headers: this.getHeaders()

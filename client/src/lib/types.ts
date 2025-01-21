@@ -41,6 +41,8 @@ export interface DisplayBook {
       thumbnail: string;
       progress: number;
       totalPages: number;
+      currentPage: number;
+      lastUpdated: string;
   }
 
 export interface ToBeReadItem {

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { AuthService } from '$lib/services/authService';
+    import { goto } from '$app/navigation';
     
     const authService = new AuthService();
     let username = '';
@@ -9,7 +10,7 @@
     async function handleLogin() {
         try {
             await authService.login(username, password);
-            // Redirect to home or dashboard
+            goto('/');
         } catch (err) {
             console.error(err);
             error = 'Invalid username or password';
@@ -17,43 +18,53 @@
     }
 </script>
 
-<div class="min-h-screen flex items-center justify-center bg-gray-200">
-    <div class="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-md">
-        <div class="text-center">
-            <h2 class="text-3xl font-bold text-gray-900">Sign in to your account</h2>
+<div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
+    <div class="w-full max-w-md space-y-8">
+        <div>
+            <h2 class="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
+                Sign in to your account
+            </h2>
         </div>
-        <form on:submit|preventDefault={handleLogin} class="mt-8 space-y-6">
-            <div class="space-y-4">
+        <form class="mt-8 space-y-6" on:submit|preventDefault={handleLogin}>
+            <div class="-space-y-px rounded-md shadow-sm">
                 <div>
-                    <input 
-                        type="text" 
-                        bind:value={username} 
+                    <label for="username" class="sr-only">Username</label>
+                    <input
+                        id="username"
+                        name="username"
+                        type="text"
+                        required
+                        bind:value={username}
+                        class="relative block w-full rounded-t-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
                         placeholder="Username"
-                        class="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10"
-                    >
+                    />
                 </div>
                 <div>
-                    <input 
-                        type="password" 
-                        bind:value={password} 
+                    <label for="password" class="sr-only">Password</label>
+                    <input
+                        id="password"
+                        name="password"
+                        type="password"
+                        required
+                        bind:value={password}
+                        class="relative block w-full rounded-b-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
                         placeholder="Password"
-                        class="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10"
-                    >
+                    />
                 </div>
             </div>
 
+            {#if error}
+                <div class="text-center text-red-600">{error}</div>
+            {/if}
+
             <div>
-                <button 
+                <button
                     type="submit"
-                    class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
+                    class="group relative flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
                 >
                     Sign in
                 </button>
             </div>
-            
-            {#if error}
-                <p class="text-red-500 text-sm text-center mt-2">{error}</p>
-            {/if}
         </form>
     </div>
 </div> 

@@ -19,7 +19,8 @@
   let isSearching = false;
   let showSearchResults = false;
   let isAddingToList = false;
-  
+  let isRemovingFromList = false;
+
   const bookService = new BookService();
   const authService = new AuthService();
 
@@ -34,7 +35,9 @@
                 author: item.Book.authors ? item.Book.authors[0] : 'Unknown Author',
                 thumbnail: item.Book.thumbnail || '',
                 progress: item.Book.progress ? item.Book.progress.percentage : 0,
-                totalPages: item.Book.totalPages || 1
+                totalPages: item.Book.totalPages || 1,
+                currentPage: item.Book.progress ? item.Book.progress.lastPageRead : 0,
+                lastUpdated: item.Book.progress ? item.Book.progress.lastUpdated : new Date().toISOString()
             }));
 
             toBeReadList = profile.lists?.toBeRead || [];
@@ -74,6 +77,8 @@
           const newProgress = Math.floor((updatedPage / total) * 100);
 
           selectedBook.progress = newProgress;
+          selectedBook.currentPage = updatedPage;
+          selectedBook.lastUpdated = new Date().toISOString();
           const index = books.findIndex(b => b.bookId === selectedBook!.bookId);
           if(index !== -1) {
               books[index] = { ...selectedBook };
@@ -85,16 +90,51 @@
       }
   }
 
-  async function deleteBook() {
-      if (!selectedBook) return;
-
+  async function RemoveFromList(bookId: string, listType: string) {
       try {
-          await bookService.deleteBook(selectedBook.bookId);
+          isRemovingFromList = true;
+          await bookService.removeFromList(bookId, listType);
           books = books.filter(b => b.bookId !== selectedBook!.bookId);
           closeModal();
       } catch (error) {
           console.error('Error deleting book:', error);
+      } finally {
+          isRemovingFromList = false;
       }
+
+      // Update local state
+      const profile = await bookService.getProfile();
+      if (listType === 'toBeRead') {
+          toBeReadList = profile.lists?.toBeRead || [];
+      } else if (listType === 'read') {
+          readList = profile.lists?.read || [];
+      }   
+    }
+  
+  async function RemoveFromCurrentlyReading(bookId: string) {
+      try {
+          isRemovingFromList = true;
+          await bookService.removeFromCurrentlyReading(bookId);
+          books = books.filter(b => b.bookId !== selectedBook!.bookId);
+          closeModal();
+      } catch (error) {
+          console.error('Error deleting book:', error);
+      } finally {
+          isRemovingFromList = false;
+      }
+
+      // Update local state
+      const profile = await bookService.getProfile();
+      books = profile.currentlyReading.map(item => ({
+          bookId: item.Book.bookId,
+          title: item.Book.title || 'Untitled',
+          author: item.Book.authors ? item.Book.authors[0] : 'Unknown Author',
+          thumbnail: item.Book.thumbnail || '',
+          progress: item.Book.progress ? item.Book.progress.percentage : 0,
+          totalPages: item.Book.totalPages || 1,
+          currentPage: item.Book.progress ? item.Book.progress.lastPageRead : 0,
+          lastUpdated: item.Book.progress ? item.Book.progress.lastUpdated : new Date().toISOString()
+      }));
   }
 
   async function startReading(bookId: string, listName: string) {
@@ -114,7 +154,9 @@
             author: item.Book.authors ? item.Book.authors[0] : 'Unknown Author',
             thumbnail: item.Book.thumbnail || '',
             progress: item.Book.progress ? item.Book.progress.percentage : 0,
-            totalPages: item.Book.totalPages || 1
+            totalPages: item.Book.totalPages || 1,
+            currentPage: item.Book.progress ? item.Book.progress.lastPageRead : 0,
+            lastUpdated: item.Book.progress ? item.Book.progress.lastUpdated : new Date().toISOString()
         }));
 
         // Update source list
@@ -149,7 +191,9 @@
             author: item.Book.authors ? item.Book.authors[0] : 'Unknown Author',
             thumbnail: item.Book.thumbnail || '',
             progress: item.Book.progress ? item.Book.progress.percentage : 0,
-            totalPages: item.Book.totalPages || 1
+            totalPages: item.Book.totalPages || 1,
+            currentPage: item.Book.progress ? item.Book.progress.lastPageRead : 0,
+            lastUpdated: item.Book.progress ? item.Book.progress.lastUpdated : new Date().toISOString()
         }));
 
         // Update read list
@@ -196,109 +240,112 @@
 </script>
 
 <div class="flex flex-col min-h-screen">
+
   <nav class="flex flex-wrap items-center justify-between bg-blue-500 p-6">
-	<div class="mr-6 flex flex-shrink-0 items-center text-white">
-		<span class="text-6xl font-semibold tracking-tight">BookIt</span>
-	</div>
-	<div class="block w-full flex-grow lg:flex lg:w-auto lg:items-center">
-		<div class="text-lg lg:flex-grow flex items-center">
-			<a
-				href="#responsive-header"
-				class="mr-4 mt-4 block text-teal-200 hover:text-white lg:mt-0 lg:inline-block"
-			>
-				Home
-			</a>
-			<a
-				href="#responsive-header"
-				class="mr-4 mt-4 block text-teal-200 hover:text-white lg:mt-0 lg:inline-block"
-			>
-				About
-			</a>
-			<div class="relative flex-grow max-w-xl ml-4">
-				<input
-					type="text"
-					bind:value={searchQuery}
-					on:input={() => handleSearch()}
-					placeholder="Search books..."
-					class="w-full px-4 py-2 text-gray-900 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400"
-				/>
-				{#if showSearchResults && searchResults.length > 0}
-					<div class="absolute z-50 w-full mt-2 bg-white rounded-lg shadow-xl max-h-96 overflow-y-auto">
-						{#each searchResults as book (book.bookId)}
-							<button 
-								type="button"
-								class="w-full p-4 hover:bg-gray-100 cursor-pointer flex items-center space-x-4 text-left"
-								on:click={async () => {
-									if (isAddingToList) return;
-									try {
-										isAddingToList = true;
-										await bookService.addToList(book.bookId, 'toBeRead');
-										const profile = await bookService.getProfile();
-										toBeReadList = profile.lists?.toBeRead || [];
-										showSearchResults = false;
-										searchQuery = '';
-									} catch (error) {
-										console.error('Error adding book to list:', error);
-									} finally {
-										isAddingToList = false;
-									}
-								}}
-								disabled={isAddingToList}
-								on:keydown={(e) => {
-									if (e.key === 'Enter' || e.key === ' ') {
-										e.preventDefault();
-										e.currentTarget.click();
-									}
-								}}
-							>
-								{#if isAddingToList}
-									<div class="w-12 h-16 flex items-center justify-center">
-										<div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-									</div>
-								{:else if book.thumbnail}
-									<img src={book.thumbnail} alt={book.title} class="w-12 h-16 object-cover" />
-								{/if}
-								<div>
-									<h3 class="text-gray-900 font-medium">{book.title}</h3>
-									<p class="text-gray-600 text-sm">{book.authors ? book.authors[0] : 'Unknown Author'}</p>
-								</div>
-							</button>
-						{/each}
-					</div>
-				{/if}
-			</div>
-		</div>
-		<div>
-			{#if $token}
-				<button
-					on:click={handleLogout}
-					class="mr-2 inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
-				>
-					Log Out
-				</button>
-				<a
-					href="#profile"
-					class="mr-2 inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
-				>
-					View Profile
-				</a>
-			{:else}
-				<a
-					href="/login"
-					class="mr-2 inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
-				>
-					Sign In
-				</a>
-				<a
-					href="/signup"
-					class="inline-block rounded-full border-2 border-blue-500 bg-blue-500 px-4 py-2 text-lg font-semibold text-white"
-				>
-					Sign Up
-				</a>
-			{/if}
-		</div>
-	</div>
-</nav>
+    <div class="flex items-center space-x-8">
+      <div class="flex flex-shrink-0 items-center text-white">
+        <span class="text-6xl font-semibold tracking-tight">BookIt</span>
+      </div>
+      <div class="flex items-center space-x-4">
+        <a
+          href="#responsive-header"
+          class="block text-teal-200 hover:text-white lg:inline-block"
+        >
+          Home
+        </a>
+        <a
+          href="#responsive-header"
+          class="block text-teal-200 hover:text-white lg:inline-block"
+        >
+          About
+        </a>
+      </div>
+    </div>
+
+    <div class="relative w-1/3 min-w-[300px]">
+      <input
+        type="text"
+        bind:value={searchQuery}
+        on:input={() => handleSearch()}
+        placeholder="Search books..."
+        class="w-full px-4 py-2 text-gray-900 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400"
+      />
+      {#if showSearchResults && searchResults.length > 0}
+        <div class="absolute z-50 w-full mt-2 bg-white rounded-lg shadow-xl max-h-96 overflow-y-auto">
+          {#each searchResults as book (book.bookId)}
+            <button 
+              type="button"
+              class="w-full p-4 hover:bg-gray-100 cursor-pointer flex items-center space-x-4 text-left"
+              on:click={async () => {
+                if (isAddingToList) return;
+                try {
+                  isAddingToList = true;
+                  await bookService.addToList(book.bookId, 'toBeRead');
+                  const profile = await bookService.getProfile();
+                  toBeReadList = profile.lists?.toBeRead || [];
+                  showSearchResults = false;
+                  searchQuery = '';
+                } catch (error) {
+                  console.error('Error adding book to list:', error);
+                } finally {
+                  isAddingToList = false;
+                }
+              }}
+              disabled={isAddingToList}
+              on:keydown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  e.currentTarget.click();
+                }
+              }}
+            >
+              {#if isAddingToList}
+                <div class="w-12 h-16 flex items-center justify-center">
+                  <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                </div>
+              {:else if book.thumbnail}
+                <img src={book.thumbnail} alt={book.title} class="w-12 h-16 object-cover" />
+              {/if}
+              <div>
+                <h3 class="text-gray-900 font-medium">{book.title}</h3>
+                <p class="text-gray-600 text-sm">{book.authors ? book.authors[0] : 'Unknown Author'}</p>
+              </div>
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <div class="flex items-center space-x-4">
+      {#if $token}
+        <button
+          on:click={handleLogout}
+          class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
+        >
+          Log Out
+        </button>
+        <a
+          href="#profile"
+          class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
+        >
+          View Profile
+        </a>
+      {:else}
+        <a
+          href="/login"
+          class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
+        >
+          Sign In
+        </a>
+        <a
+          href="/signup"
+          class="inline-block rounded-full border-2 border-blue-500 bg-blue-500 px-4 py-2 text-lg font-semibold text-white"
+        >
+          Sign Up
+        </a>
+      {/if}
+    </div>
+  </nav>
 
 <main class="flex-grow">
   <section class="mt-16 mx-8 md:mx-16 lg:mx-40 flex flex-col items-start px-4">
@@ -374,20 +421,40 @@
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {#each (toBeReadList?.slice(0, 4) || []).reverse() as book}
               <div class="flex flex-col">
-                  <div class="relative w-full bg-gray-300 rounded-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105">
+                  <div class="relative w-full bg-gray-300 rounded-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 group">
                       <img
                           src={book.thumbnail || 'default-cover-image-url'}
                           alt="Book Cover"
+                          loading="lazy"
+                          decoding="async"
+                          on:load={(e) => (e.currentTarget as HTMLImageElement).style.opacity = '1'}
+                          style="opacity: 0; transition: opacity 0.3s"
                           class="w-full h-64 sm:h-72 md:h-80 lg:h-64 rounded-lg"
                       />
+                      <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 rounded-lg">
+                          <button 
+                              class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                              on:click={() => startReading(book.bookId, 'toBeRead')}
+                              disabled={isStartingBook}
+                          >
+                              {isStartingBook ? 'Loading...' : 'Details'}
+                          </button>
+                          <button 
+                              class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                              on:click={() => startReading(book.bookId, 'toBeRead')}
+                              disabled={isStartingBook}
+                          >
+                              {isStartingBook ? 'Starting...' : 'Start'}
+                          </button>
+                          <button 
+                              class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                              on:click={() => RemoveFromList(book.bookId, 'toBeRead')}
+                              disabled={isRemovingFromList}
+                          >
+                              {isRemovingFromList? 'Removing...' : 'Remove'}
+                          </button>
+                      </div>
                   </div>
-                  <button 
-                      class="w-full h-8 mt-4 bg-gray-100 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                      on:click={() => startReading(book.bookId, 'toBeRead')}
-                      disabled={isStartingBook}
-                  >
-                      {isStartingBook ? 'Starting...' : 'Start Reading'}
-                  </button>
               </div>
           {/each}
           {#if (toBeReadList?.length || 0) >= 5}
@@ -407,18 +474,45 @@
       
       <!-- Grid Container -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {#each (readList?.slice(-4) || []).reverse() as book}
+          {#each (readList?.slice(0, 4) || []).reverse() as book}
               <div class="flex flex-col">
-                  <div class="relative rounded-lg bg-gray-300 shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 w-full">
+                  <div class="relative w-full bg-gray-300 rounded-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 group">
                       <img
                           src={book.thumbnail || 'default-cover-image-url'}
                           alt="Book Cover"
+                          loading="lazy"
+                          decoding="async"
+                          on:load={(e) => (e.currentTarget as HTMLImageElement).style.opacity = '1'}
+                          style="opacity: 0; transition: opacity 0.3s"
                           class="w-full h-64 sm:h-72 md:h-80 lg:h-64 rounded-lg"
                       />
+                      <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 rounded-lg">
+                          <button 
+                              class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                              on:click={() => startReading(book.bookId, 'read')}
+                              disabled={isStartingBook}
+                          >
+                              {isStartingBook ? 'Loading...' : 'Details'}
+                          </button>
+                          <button 
+                              class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                              on:click={() => startReading(book.bookId, 'read')}
+                              disabled={isStartingBook}
+                          >
+                              {isStartingBook ? 'Starting...' : 'Start'}
+                          </button>
+                          <button 
+                              class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                              on:click={() => RemoveFromList(book.bookId, 'read')}
+                              disabled={isRemovingFromList}
+                          >
+                              {isRemovingFromList? 'Removing...' : 'Remove'}
+                          </button>
+                      </div>
                   </div>
               </div>
           {/each}
-          {#if (readList?.length || 0) > 4}
+          {#if (toBeReadList?.length || 0) >= 5}
               <div class="flex items-center justify-center text-gray-600 text-6xl">...</div>
           {/if}
       </div>
@@ -442,6 +536,10 @@
                           <img
                               src={book.thumbnail || 'default-cover-image-url'}
                               alt="Book Cover"
+                              loading="lazy"
+                              decoding="async"
+                              on:load={(e) => (e.currentTarget as HTMLImageElement).style.opacity = '1'}
+                              style="opacity: 0; transition: opacity 0.3s"
                               class="w-full h-64 sm:h-72 md:h-80 lg:h-64 rounded-lg"
                           />
                       </div>
@@ -506,11 +604,22 @@
                   Update Progress for {selectedBook?.title}
                 </h3>
                 <div class="mt-8">
+                  <div class="flex justify-between items-center gap-4 text-sm text-gray-600">
+                    <div>
+                      Current Page: {selectedBook?.currentPage || 0} / {selectedBook?.totalPages || 'Unknown'}
+                    </div>
+                    <div>
+                      Last Updated: {selectedBook?.lastUpdated ? new Date(selectedBook.lastUpdated).toLocaleDateString('en-US', {month: 'numeric', day: 'numeric', year: 'numeric'}) : 'Never'}
+                    </div>
+                  </div>
+                </div>
+                <div class="mt-8">
                   <label for="newPageCount" class="block text-sm font-medium text-gray-700">New Page Count</label>
                   <input
                     id="newPageCount"
                     type="number"
                     bind:value={newPageCount}
+                    min={selectedBook?.currentPage || 0}
                     class="mt-4 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                     placeholder="Enter new page count"
                   />
@@ -538,9 +647,9 @@
             <button 
               type="button" 
               class="mt-3 inline-flex w-full justify-center rounded-md bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:mt-0 sm:w-auto"
-              on:click={deleteBook}
+              on:click={() => selectedBook && RemoveFromCurrentlyReading(selectedBook.bookId)}
             >
-              Delete
+              Remove
             </button>
             <button 
               type="button" 

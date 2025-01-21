@@ -1,49 +1,30 @@
-import { token } from '$lib/stores/authStore';
-import { PUBLIC_USER_POOL_CLIENT_ID, PUBLIC_USER_POOL_ID } from '$env/static/public';
-import { CognitoUser, AuthenticationDetails, CognitoUserPool } from 'amazon-cognito-identity-js';
+import { setToken, clearToken } from '$lib/stores/authStore';
+import { PUBLIC_API_BASE_URL } from '$env/static/public';
 
 export class AuthService {
-    private readonly userPool: CognitoUserPool;
-
-    constructor() {
-        this.userPool = new CognitoUserPool({
-            UserPoolId: PUBLIC_USER_POOL_ID,
-            ClientId: PUBLIC_USER_POOL_CLIENT_ID
-        });
-    }
-
     async login(username: string, password: string): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const user = new CognitoUser({
-                Username: username,
-                Pool: this.userPool
-            });
-
-            const authDetails = new AuthenticationDetails({
-                Username: username,
-                Password: password
-            });
-
-            user.authenticateUser(authDetails, {
-                onSuccess: (result) => {
-                    const jwtToken = result.getIdToken().getJwtToken();
-                    token.set(jwtToken);
-                    window.location.href = '/';
-                    resolve();
-                },
-                onFailure: (err) => {
-                    reject(err);
-                }
-            });
+        const response = await fetch(`${PUBLIC_API_BASE_URL}/auth/signin`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, password })
         });
+
+        if (!response.ok) {
+            throw new Error('Login failed');
+        }
+
+        const data = await response.json();
+        setToken(data.IdToken);
+
+        // Set cookie for server-side rendering
+        document.cookie = `token=${data.IdToken}; path=/; max-age=3600; SameSite=Strict`;
     }
 
-    logout() {
-        const currentUser = this.userPool.getCurrentUser();
-        if (currentUser) {
-            currentUser.signOut();
-            token.set('');
-            window.location.reload();
-        }
+    logout(): void {
+        clearToken();
+        // Clear cookie
+        document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
     }
 }
