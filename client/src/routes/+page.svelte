@@ -3,51 +3,21 @@
   import { BookService } from '$lib/services/bookService';
   import type { DisplayBook, ToBeReadItem, ReadItem } from '$lib/types';
 
-  let books: DisplayBook[] = [];
+  export let data: {
+    books: DisplayBook[];
+    toBeReadList: ToBeReadItem[];
+    readList: ReadItem[];
+    customLists: Record<string, any[]>;
+  };
+
   let modalVisible = false;
   let selectedBook: DisplayBook | null = null;
   let newPageCount: number | '' = '';
-  let toBeReadList: ToBeReadItem[] = [];
-  let readList: ReadItem[] = [];
-  let customLists: Record<string, any[]> = {};
   let isStartingBook = false;
   let isFinishingBook = false;
   let isRemovingFromList = false;
 
   const bookService = new BookService();
-
-  onMount(() => {
-    // Fetch profile
-    (async () => {
-        try {
-            const profile = await bookService.getProfile();
-            console.log('Raw profile data:', profile);
-            console.log('Currently reading books:', profile.currentlyReading);
-            
-            books = (profile.currentlyReading || []).map(item => {
-                console.log('Mapping book item:', item);
-                console.log('Book title:', item.Book?.title);
-                return {
-                    bookId: item.Book.bookId,
-                    title: item.Book?.title || 'Unknown',
-                    author: item.Book?.authors?.[0] || 'Unknown Author',
-                    thumbnail: item.Book?.thumbnail || '',
-                    progress: item.Book?.progress?.percentage || 0,
-                    totalPages: item.Book?.totalPages || 1,
-                    currentPage: item.Book?.progress?.lastPageRead || 0,
-                    lastUpdated: item.Book?.progress?.lastUpdated || new Date().toISOString()
-                };
-            });
-            console.log('Mapped books:', books);
-
-            toBeReadList = profile.lists?.toBeRead || [];
-            readList = profile.lists?.read || [];
-            customLists = profile.lists?.customLists || {};
-        } catch (error) {
-            console.error('Error fetching profile:', error);
-        }
-    })();
-  });
 
   function openModal(book: DisplayBook) {
       selectedBook = book;
@@ -75,9 +45,9 @@
           selectedBook.progress = newProgress;
           selectedBook.currentPage = updatedPage;
           selectedBook.lastUpdated = new Date().toISOString();
-          const index = books.findIndex(b => b.bookId === selectedBook!.bookId);
+          const index = data.books.findIndex(b => b.bookId === selectedBook!.bookId);
           if(index !== -1) {
-              books[index] = { ...selectedBook };
+              data.books[index] = { ...selectedBook };
           }
 
           closeModal();
@@ -90,7 +60,7 @@
       try {
           isRemovingFromList = true;
           await bookService.removeFromList(bookId, listType);
-          books = books.filter(b => b.bookId !== selectedBook!.bookId);
+          data.books = data.books.filter(b => b.bookId !== selectedBook!.bookId);
           closeModal();
       } catch (error) {
           console.error('Error deleting book:', error);
@@ -101,9 +71,9 @@
       // Update local state
       const profile = await bookService.getProfile();
       if (listType === 'toBeRead') {
-          toBeReadList = profile.lists?.toBeRead || [];
+          data.toBeReadList = profile.lists?.toBeRead || [];
       } else if (listType === 'read') {
-          readList = profile.lists?.read || [];
+          data.readList = profile.lists?.read || [];
       }   
     }
   
@@ -111,7 +81,7 @@
       try {
           isRemovingFromList = true;
           await bookService.removeFromCurrentlyReading(bookId);
-          books = books.filter(b => b.bookId !== selectedBook!.bookId);
+          data.books = data.books.filter(b => b.bookId !== selectedBook!.bookId);
           closeModal();
       } catch (error) {
           console.error('Error deleting book:', error);
@@ -121,7 +91,7 @@
 
       // Update local state
       const profile = await bookService.getProfile();
-      books = profile.currentlyReading.map(item => ({
+      data.books = profile.currentlyReading.map(item => ({
           bookId: item.Book.bookId,
           title: item.Book.title || 'Untitled',
           author: item.Book.authors ? item.Book.authors[0] : 'Unknown Author',
@@ -144,7 +114,7 @@
         const profile = await bookService.getProfile();
         
         // Update currently reading list
-        books = profile.currentlyReading.map(item => ({
+        data.books = profile.currentlyReading.map(item => ({
             bookId: item.Book.bookId,
             title: item.Book.title || 'Untitled',
             author: item.Book.authors ? item.Book.authors[0] : 'Unknown Author',
@@ -157,11 +127,11 @@
 
         // Update source list
         if (listName === 'toBeRead') {
-            toBeReadList = profile.lists?.toBeRead || [];
+            data.toBeReadList = profile.lists?.toBeRead || [];
         } else if (listName === 'read') {
-            readList = profile.lists?.read || [];
+            data.readList = profile.lists?.read || [];
         } else {
-            customLists = profile.lists?.customLists || {};
+            data.customLists = profile.lists?.customLists || {};
         }
     } catch (error) {
         console.error('Error starting book:', error);
@@ -181,7 +151,7 @@
         const profile = await bookService.getProfile();
         
         // Update currently reading list
-        books = (profile.currentlyReading || []).map(item => ({
+        data.books = (profile.currentlyReading || []).map(item => ({
             bookId: item.Book.bookId,
             title: item.Book.title || 'Untitled',
             author: item.Book.authors ? item.Book.authors[0] : 'Unknown Author',
@@ -193,7 +163,7 @@
         }));
 
         // Update read list
-        readList = profile.lists?.read || [];
+        data.readList = profile.lists?.read || [];
         
         closeModal();
     } catch (error) {
@@ -210,13 +180,13 @@
       <div class="w-full text-left mb-8">
           <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-800">Current Reads</h1>
       </div>
-      {#if books.length === 0}
+      {#if data.books.length === 0}
         <div class="w-full flex justify-center items-center py-16">
           <p class="text-2xl text-gray-500">No current reads</p>
         </div>
       {:else}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 w-full">
-          {#each books as book}
+          {#each data.books as book}
               <div class="flex flex-col rounded-lg overflow-hidden w-full duration-300 transform hover:scale-105 shadow-lg">
                   <div class="w-full h-64 md:h-72 lg:h-64 bg-gray-300 flex items-center justify-center">
                       {#if book.bookId}
@@ -270,14 +240,14 @@
     <section class="mt-16 mx-8 md:mx-16 lg:mx-40 flex flex-col items-start px-4">
         <div class="w-full text-left mb-8">
             <h1 class="text-4xl md:text-5xl lg:text-4xl font-bold text-gray-600">
-                To Be Read ({toBeReadList?.length || 0})
+                To Be Read ({data.toBeReadList?.length || 0})
             </h1>
             <button class="text-lg mt-2 font-semibold text-blue-500">View All</button>
         </div>
         
         <!-- Grid Container -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {#each (toBeReadList?.slice(0, 4) || []).reverse() as book}
+            {#each (data.toBeReadList?.slice(0, 4) || []).reverse() as book}
                 <div class="flex flex-col">
                     <div class="relative w-full bg-gray-300 rounded-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 group">
                         <img
@@ -315,7 +285,7 @@
                     </div>
                 </div>
             {/each}
-            {#if (toBeReadList?.length || 0) >= 5}
+            {#if (data.toBeReadList?.length || 0) >= 5}
                 <div class="flex items-center justify-center text-gray-600 text-6xl">...</div>
             {/if}
         </div>
@@ -325,14 +295,14 @@
     <section class="mt-16 mx-8 md:mx-16 lg:mx-40 flex flex-col items-start px-4">
         <div class="w-full text-left mb-8">
             <h1 class="text-4xl md:text-5xl lg:text-4xl font-bold text-gray-600">
-                Read ({readList?.length})
+                Read ({data.readList?.length})
             </h1>
             <button class="text-lg mt-2 font-semibold text-blue-500">View All</button>
         </div>
         
         <!-- Grid Container -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {#each (readList?.slice(0, 4) || []).reverse() as book}
+            {#each (data.readList?.slice(0, 4) || []).reverse() as book}
                 <div class="flex flex-col">
                     <div class="relative w-full bg-gray-300 rounded-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 group">
                         <img
@@ -370,14 +340,14 @@
                     </div>
                 </div>
             {/each}
-            {#if (toBeReadList?.length || 0) >= 5}
+            {#if (data.toBeReadList?.length || 0) >= 5}
                 <div class="flex items-center justify-center text-gray-600 text-6xl">...</div>
             {/if}
         </div>
     </section>
 
     <!-- Custom Lists Section -->
-    {#each Object.entries(customLists) as [listName, books]}
+    {#each Object.entries(data.customLists) as [listName, books]}
         <section class="mt-16 mx-8 md:mx-16 lg:mx-40 flex flex-col items-start px-4">
             <div class="w-full text-left mb-8">
                 <h1 class="text-4xl md:text-5xl lg:text-4xl font-bold text-gray-600">
