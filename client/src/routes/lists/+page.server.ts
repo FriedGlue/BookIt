@@ -5,7 +5,7 @@ import type { Profile } from '$lib/types';
 
 export const load = (async ({ fetch, cookies }) => {
 	try {
-        const token = cookies.get('idToken');
+		const token = cookies.get('idToken');
 
 		if (!token) {
 			console.log('No token found');
@@ -19,7 +19,7 @@ export const load = (async ({ fetch, cookies }) => {
 		console.log('Fetching profile...');
 		const response = await fetch(`${PUBLIC_API_BASE_URL}/profile`, {
 			headers: {
-				'Authorization': `Bearer ${token}`,
+				Authorization: `Bearer ${token}`,
 				'Content-Type': 'application/json'
 			}
 		});
@@ -90,5 +90,5 @@ export const actions: Actions = {
 			console.error('Failed to remove from list:', err);
 			return { error: 'Failed to remove from list' };
 		}
-	},
+	}
 };

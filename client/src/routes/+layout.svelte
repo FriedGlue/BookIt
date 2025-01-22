@@ -6,9 +6,9 @@
 	export let data: { authenticated: boolean };
 </script>
 
-<div class="min-h-screen flex flex-col">
-	<NavBar authenticated={data.authenticated}/>
-	<main class="flex-grow flex flex-col">
+<div class="flex min-h-screen flex-col">
+	<NavBar authenticated={data.authenticated} />
+	<main class="flex flex-grow flex-col">
 		<slot />
 	</main>
 	<Footer />

@@ -38,7 +38,7 @@ export class BookService {
 
 	async updateBookProgress(bookId: string, currentPage: number): Promise<void> {
 		const response = await fetch(
-			`${PUBLIC_API_BASE_URL}/currently-reading`, 
+			`${PUBLIC_API_BASE_URL}/currently-reading`,
 			this.getOptions('PUT', { bookId, currentPage })
 		);
 		if (!response.ok) {
