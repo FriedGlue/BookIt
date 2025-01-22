@@ -1,5 +1,6 @@
-import type { Profile } from '$lib/types';
+// src/lib/services/BookService.ts
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
+import type { Profile } from '$lib/types';
 
 interface SearchResult {
 	bookId: string;
@@ -9,12 +10,19 @@ interface SearchResult {
 }
 
 export class BookService {
+	private token: string;
+
+	constructor(token: string) {
+		this.token = token;
+	}
+
 	private getOptions(method: string, body?: unknown) {
 		return {
 			method,
 			credentials: 'include' as RequestCredentials,
 			headers: {
 				'Content-Type': 'application/json',
+				Authorization: `Bearer ${this.token}` // Attach your token as a Bearer token
 			},
 			body: body ? JSON.stringify(body) : undefined
 		};
@@ -30,7 +38,7 @@ export class BookService {
 
 	async updateBookProgress(bookId: string, currentPage: number): Promise<void> {
 		const response = await fetch(
-			`${PUBLIC_API_BASE_URL}/currently-reading`,
+			`${PUBLIC_API_BASE_URL}/currently-reading`, 
 			this.getOptions('PUT', { bookId, currentPage })
 		);
 		if (!response.ok) {
@@ -44,7 +52,7 @@ export class BookService {
 			this.getOptions('DELETE')
 		);
 		if (!response.ok) {
-			throw new Error('Failed to delete book');
+			throw new Error('Failed to remove book from list');
 		}
 	}
 
@@ -54,7 +62,7 @@ export class BookService {
 			this.getOptions('DELETE')
 		);
 		if (!response.ok) {
-			throw new Error('Failed to delete book');
+			throw new Error('Failed to remove book from currently reading');
 		}
 	}
 
