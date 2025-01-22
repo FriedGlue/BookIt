@@ -1,20 +1,21 @@
 <script lang="ts">
 	export let data: {
-		toBeReadList: any[];
-		readList: any[];
-		customLists: Record<string, any[]>;
+		toBeReadList: Book[];
+		readList: Book[];
+		customLists: Record<string, Book[]>;
 	};
 
 	import { onMount } from 'svelte';
 	import { BookService } from '$lib/services/bookService';
+	import type { Book } from '$lib/types';
 
 	// We'll store the selected list name locally
 	let selectedList = 'All'; // default to "All"
 	let lists: string[] = []; // array of list names for the sidebar
 
 	// We'll flatten "All" books in a single array for "All" view
-	let allBooks: any[] = [];
-	let displayBooks: any[] = []; // the books to display in main content
+	let allBooks: Book[] = [];
+	let displayBooks: Book[] = []; // the books to display in main content
 
 	const bookService = new BookService();
 
@@ -41,7 +42,6 @@
 		];
 
 		console.log(allBooks);	
-		console.log("test");
 
 		updateDisplayBooks();
 	});
@@ -150,7 +150,7 @@
 							<!-- Remove button -->
 							<button
 								class="mt-2 px-3 py-1 bg-red-500 text-white text-lg rounded h-10 w-36 hover:bg-red-600"
-								on:click={() => removeBook(book.bookId, book._listType)}>
+								on:click={() => removeBook(book.bookId, book._listType!)}>
 								Remove
 							</button>
 						</div>

@@ -1,4 +1,3 @@
-import { setTokens, clearTokens } from '$lib/stores/authStore';
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 
 export class AuthService {
@@ -18,9 +17,6 @@ export class AuthService {
 
         const data = await response.json();
         
-        // Set tokens in localStorage via store
-        setTokens(data.IdToken, data.RefreshToken);
-        
         // Set cookies via a server endpoint
         await fetch('/api/set-auth-cookies', {
             method: 'POST',
@@ -34,9 +30,27 @@ export class AuthService {
         });
     }
 
+    async refreshToken(): Promise<void> {
+        const response = await fetch(`${PUBLIC_API_BASE_URL}/auth/refresh`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${this.refreshToken}`
+            }
+        });
+        if (!response.ok) {
+            throw new Error('Refresh token failed');
+        }
+        const data = await response.json();
+
+        return data.IdToken;
+    }
+
     logout(): void {
-        clearTokens();
-        
+        // Clear cookies via server endpoint
+        fetch('/api/set-auth-cookies', {
+            method: 'DELETE'
+        }).catch(console.error);
+
         // Only call signout endpoint if not in local development
         if (!PUBLIC_API_BASE_URL.includes('localhost')) {
             fetch(`${PUBLIC_API_BASE_URL}/auth/signout`, {

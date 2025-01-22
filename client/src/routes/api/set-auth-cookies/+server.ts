@@ -20,4 +20,10 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     });
 
     return json({ success: true });
+};
+
+export const DELETE: RequestHandler = async ({ cookies }) => {
+    cookies.delete('token', { path: '/' });
+    cookies.delete('refreshToken', { path: '/' });
+    return json({ success: true });
 }; 

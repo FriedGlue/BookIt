@@ -8,6 +8,10 @@ interface DecodedToken {
     email: string;
 }
 
+interface Locals {
+    token?: string;
+}
+
 export const handle: Handle = async ({ event, resolve }) => {
     // Get tokens from cookies
     const token = event.cookies.get('token');
@@ -55,4 +59,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     const response = await resolve(event);
     return response;
-}; 
+};
+
+export function isLoggedIn(locals: Locals): boolean {
+    return !!locals.token;
+} 

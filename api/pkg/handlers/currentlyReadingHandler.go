@@ -624,6 +624,8 @@ func FinishReading(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 	readItem := models.ReadItem{
 		BookID:        bookToMove.Book.BookID,
 		CompletedDate: time.Now().Format(time.RFC3339),
+		Title:         bookToMove.Book.Title,
+		Authors:       bookToMove.Book.Authors,
 		Thumbnail:     bookToMove.Book.Thumbnail,
 		Rating:        0,  // Initial rating
 		Review:        "", // Initial review

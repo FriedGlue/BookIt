@@ -1,9 +1,7 @@
 <script lang="ts">
   import { BookService } from '$lib/services/bookService';
   import { AuthService } from '$lib/services/authService';
-  import type { DisplayBook } from '$lib/types';
-  import { idToken } from '$lib/stores/authStore';
-  import { page } from '$app/stores';
+  import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
 
   let searchQuery = '';
@@ -15,6 +13,12 @@
 
   const bookService = new BookService();
   const authService = new AuthService();
+
+  let authenticated = false;
+
+  onMount(() => {
+    authenticated = document.cookie.includes('token=');
+  });
 
   async function handleSearch() {
     if (!searchQuery.trim()) {
@@ -46,8 +50,6 @@
         showSearchResults = false;
     }
   }
-
-  $: isLoggedIn = !!$idToken;
 </script>
 
 <nav class="flex flex-wrap items-center justify-between bg-blue-500 p-6">
@@ -126,7 +128,7 @@
   </div>
 
   <div class="flex items-center space-x-4">
-    {#if $idToken}
+    {#if authenticated}
       <button
         on:click={handleLogout}
         class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
