@@ -14,11 +14,7 @@
   const bookService = new BookService();
   const authService = new AuthService();
 
-  let authenticated = false;
-
-  onMount(() => {
-    authenticated = document.cookie.includes('token=');
-  });
+  export let authenticated: boolean;
 
   async function handleSearch() {
     if (!searchQuery.trim()) {

@@ -8,22 +8,24 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     cookies.set('token', token, {
         path: '/',
         maxAge: 3600,
-        sameSite: 'strict',
-        httpOnly: true
+        sameSite: 'none',
+        httpOnly: true,
+        secure: true
     });
 
     cookies.set('refreshToken', refreshToken, {
         path: '/',
         maxAge: 86400, // 24 hours
-        sameSite: 'strict',
-        httpOnly: true
+        sameSite: 'none',
+        httpOnly: true,
+        secure: true
     });
 
     return json({ success: true });
 };
 
 export const DELETE: RequestHandler = async ({ cookies }) => {
-    cookies.delete('token', { path: '/' });
-    cookies.delete('refreshToken', { path: '/' });
+    cookies.delete('token', { path: '/', sameSite: 'none', secure: true });
+    cookies.delete('refreshToken', { path: '/', sameSite: 'none', secure: true });
     return json({ success: true });
 }; 

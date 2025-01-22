@@ -28,7 +28,6 @@ Resources:
             Identity:
               Header: Authorization
 
-
   #####################################
   # Authentication resources
   #####################################
@@ -233,7 +232,7 @@ Resources:
           Type: Api
           Properties:
             Path: /auth/signup
-            Method: POST
+            Method: ANY 
             RestApiId: !Ref BookitApi
             Auth:
               Authorizer: NONE   
@@ -242,7 +241,7 @@ Resources:
           Type: Api
           Properties:
             Path: /auth/confirm
-            Method: POST
+            Method: ANY 
             RestApiId: !Ref BookitApi
             Auth:
               Authorizer: NONE   
@@ -251,7 +250,7 @@ Resources:
           Type: Api
           Properties:
             Path: /auth/signin
-            Method: POST
+            Method: ANY 
             RestApiId: !Ref BookitApi
             Auth:
               Authorizer: NONE   
@@ -260,14 +259,14 @@ Resources:
           Type: Api
           Properties:
             Path: /auth/signout
-            Method: POST
+            Method: ANY 
             RestApiId: !Ref BookitApi
 
         RefreshRoute:
           Type: Api
           Properties:
             Path: /auth/refresh
-            Method: POST
+            Method: ANY 
             RestApiId: !Ref BookitApi
 
 Outputs:

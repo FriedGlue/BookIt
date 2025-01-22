@@ -159,7 +159,7 @@ func HandleSignIn(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 		StatusCode: 200,
 		Body:       string(body),
 		Headers: map[string]string{
-			"Set-Cookie": fmt.Sprintf("refreshToken=%s; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict",
+			"Set-Cookie": fmt.Sprintf("refreshToken=%s; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=none",
 				aws.StringValue(output.AuthenticationResult.RefreshToken)),
 		},
 	}
@@ -177,7 +177,7 @@ func HandleSignOut(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
 		Headers: map[string]string{
-			"Set-Cookie": "refreshToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; HttpOnly; Secure; SameSite=Strict",
+			"Set-Cookie": "refreshToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; HttpOnly; Secure; SameSite=none",
 		},
 		Body: "Signed out successfully",
 	}

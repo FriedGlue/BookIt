@@ -26,7 +26,8 @@ export class AuthService {
             body: JSON.stringify({
                 token: data.IdToken,
                 refreshToken: data.RefreshToken
-            })
+            }),
+            credentials: 'include'
         });
     }
 

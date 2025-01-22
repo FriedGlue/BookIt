@@ -40,7 +40,7 @@ export const handle: Handle = async ({ event, resolve }) => {
                     event.cookies.set('token', IdToken, {
                         path: '/',
                         maxAge: 3600,
-                        sameSite: 'strict'
+                        sameSite: 'none'
                     });
                     // Update the token in locals
                     event.locals.token = IdToken;
