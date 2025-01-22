@@ -1,9 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { BookService } from '$lib/services/bookService';
-  import { AuthService } from '$lib/services/authService';
   import type { DisplayBook, ToBeReadItem, ReadItem } from '$lib/types';
-	import { token } from '$lib/stores/authStore';
 
   let books: DisplayBook[] = [];
   let modalVisible = false;
@@ -14,31 +12,33 @@
   let customLists: Record<string, any[]> = {};
   let isStartingBook = false;
   let isFinishingBook = false;
-  let searchQuery = '';
-  let searchResults: any[] = [];
-  let isSearching = false;
-  let showSearchResults = false;
-  let isAddingToList = false;
   let isRemovingFromList = false;
 
   const bookService = new BookService();
-  const authService = new AuthService();
 
   onMount(() => {
     // Fetch profile
     (async () => {
         try {
             const profile = await bookService.getProfile();
-            books = (profile.currentlyReading || []).map(item => ({
-                bookId: item.Book.bookId,
-                title: item.Book.title || 'Untitled',
-                author: item.Book.authors ? item.Book.authors[0] : 'Unknown Author',
-                thumbnail: item.Book.thumbnail || '',
-                progress: item.Book.progress ? item.Book.progress.percentage : 0,
-                totalPages: item.Book.totalPages || 1,
-                currentPage: item.Book.progress ? item.Book.progress.lastPageRead : 0,
-                lastUpdated: item.Book.progress ? item.Book.progress.lastUpdated : new Date().toISOString()
-            }));
+            console.log('Raw profile data:', profile);
+            console.log('Currently reading books:', profile.currentlyReading);
+            
+            books = (profile.currentlyReading || []).map(item => {
+                console.log('Mapping book item:', item);
+                console.log('Book title:', item.Book?.title);
+                return {
+                    bookId: item.Book.bookId,
+                    title: item.Book?.title || 'Unknown',
+                    author: item.Book?.authors?.[0] || 'Unknown Author',
+                    thumbnail: item.Book?.thumbnail || '',
+                    progress: item.Book?.progress?.percentage || 0,
+                    totalPages: item.Book?.totalPages || 1,
+                    currentPage: item.Book?.progress?.lastPageRead || 0,
+                    lastUpdated: item.Book?.progress?.lastUpdated || new Date().toISOString()
+                };
+            });
+            console.log('Mapped books:', books);
 
             toBeReadList = profile.lists?.toBeRead || [];
             readList = profile.lists?.read || [];
@@ -47,10 +47,6 @@
             console.error('Error fetching profile:', error);
         }
     })();
-
-    // Add click listener
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
   });
 
   function openModal(book: DisplayBook) {
@@ -206,381 +202,215 @@
         isFinishingBook = false;
     }
   }
-
-  function handleLogout() {
-    authService.logout();
-  }
-
-  async function handleSearch() {
-    if (!searchQuery.trim()) {
-        searchResults = [];
-        showSearchResults = false;
-        return;
-    }
-
-    try {
-        isSearching = true;
-        searchResults = await bookService.searchBooks(searchQuery);
-        showSearchResults = true;
-    } catch (error) {
-        console.error('Error searching books:', error);
-        searchResults = [];
-    } finally {
-        isSearching = false;
-    }
-  }
-
-  function handleClickOutside(event: MouseEvent) {
-    const target = event.target as HTMLElement;
-    if (!target.closest('.search-container')) {
-        showSearchResults = false;
-    }
-  }
-
 </script>
 
-<div class="flex flex-col min-h-screen">
-
-  <nav class="flex flex-wrap items-center justify-between bg-blue-500 p-6">
-    <div class="flex items-center space-x-8">
-      <div class="flex flex-shrink-0 items-center text-white">
-        <span class="text-6xl font-semibold tracking-tight">BookIt</span>
+<div class="flex flex-col flex-grow">
+  <main class="flex-grow">
+    <section class="mt-16 mx-8 md:mx-16 lg:mx-40 flex flex-col items-start px-4">
+      <div class="w-full text-left mb-8">
+          <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-800">Current Reads</h1>
       </div>
-      <div class="flex items-center space-x-4">
-        <a
-          href="#responsive-header"
-          class="block text-teal-200 hover:text-white lg:inline-block"
-        >
-          Home
-        </a>
-        <a
-          href="#responsive-header"
-          class="block text-teal-200 hover:text-white lg:inline-block"
-        >
-          About
-        </a>
-      </div>
-    </div>
-
-    <div class="relative w-1/3 min-w-[300px]">
-      <input
-        type="text"
-        bind:value={searchQuery}
-        on:input={() => handleSearch()}
-        placeholder="Search books..."
-        class="w-full px-4 py-2 text-gray-900 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400"
-      />
-      {#if showSearchResults && searchResults.length > 0}
-        <div class="absolute z-50 w-full mt-2 bg-white rounded-lg shadow-xl max-h-96 overflow-y-auto">
-          {#each searchResults as book (book.bookId)}
-            <button 
-              type="button"
-              class="w-full p-4 hover:bg-gray-100 cursor-pointer flex items-center space-x-4 text-left"
-              on:click={async () => {
-                if (isAddingToList) return;
-                try {
-                  isAddingToList = true;
-                  await bookService.addToList(book.bookId, 'toBeRead');
-                  const profile = await bookService.getProfile();
-                  toBeReadList = profile.lists?.toBeRead || [];
-                  showSearchResults = false;
-                  searchQuery = '';
-                } catch (error) {
-                  console.error('Error adding book to list:', error);
-                } finally {
-                  isAddingToList = false;
-                }
-              }}
-              disabled={isAddingToList}
-              on:keydown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  e.currentTarget.click();
-                }
-              }}
-            >
-              {#if isAddingToList}
-                <div class="w-12 h-16 flex items-center justify-center">
-                  <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-                </div>
-              {:else if book.thumbnail}
-                <img src={book.thumbnail} alt={book.title} class="w-12 h-16 object-cover" />
-              {/if}
-              <div>
-                <h3 class="text-gray-900 font-medium">{book.title}</h3>
-                <p class="text-gray-600 text-sm">{book.authors ? book.authors[0] : 'Unknown Author'}</p>
+      {#if books.length === 0}
+        <div class="w-full flex justify-center items-center py-16">
+          <p class="text-2xl text-gray-500">No current reads</p>
+        </div>
+      {:else}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 w-full">
+          {#each books as book}
+              <div class="flex flex-col rounded-lg overflow-hidden w-full duration-300 transform hover:scale-105 shadow-lg">
+                  <div class="w-full h-64 md:h-72 lg:h-64 bg-gray-300 flex items-center justify-center">
+                      {#if book.bookId}
+                          <img
+                              src={book.thumbnail}
+                              alt={`Cover of ${book.title} by ${book.author}`}
+                              class="max-w-full max-h-full object-contain"
+                              loading="lazy"
+                          />
+                      {:else}
+                          <div class="text-gray-500">No Cover Available</div>
+                      {/if}
+                  </div>
+                  <div class="flex flex-col flex-grow p-6 bg-white">
+                      <h2 
+                          class="text-xl font-semibold text-gray-800 mb-2 h-14 line-clamp-2 overflow-hidden"
+                          title={book.title}
+                      >
+                          {book.title}
+                      </h2>
+                      <p class="text-gray-600 mb-4 h-6 line-clamp-1">{book.author}</p>
+                      <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                          <div
+                              class="h-full bg-green-500 transition-all duration-300"
+                              style="width: {book.progress}%;"
+                          ></div>
+                      </div>
+                      <div class="mt-2 flex justify-between items-center">
+                          <span class="text-sm text-gray-700">{Math.round(book.progress)}%</span>
+                          <div class="space-x-2">
+                              <button class="text-blue-500 hover:text-blue-700">Details</button>
+                          </div>
+                      </div>
+                      <button 
+                          on:click={() => openModal(book)} 
+                          class="w-full h-8 mt-4 bg-gray-300 rounded-full hover:bg-blue-500"
+                      >
+                          Update Progress
+                      </button>
+                  </div>
               </div>
-            </button>
           {/each}
         </div>
       {/if}
-    </div>
+    </section>
 
-    <div class="flex items-center space-x-4">
-      {#if $token}
-        <button
-          on:click={handleLogout}
-          class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
-        >
-          Log Out
-        </button>
-        <a
-          href="#profile"
-          class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
-        >
-          View Profile
-        </a>
-      {:else}
-        <a
-          href="/login"
-          class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
-        >
-          Sign In
-        </a>
-        <a
-          href="/signup"
-          class="inline-block rounded-full border-2 border-blue-500 bg-blue-500 px-4 py-2 text-lg font-semibold text-white"
-        >
-          Sign Up
-        </a>
-      {/if}
-    </div>
-  </nav>
+    <!-- Example Divider -->
+    <hr class="my-16 border-gray-300" />
 
-<main class="flex-grow">
-  <section class="mt-16 mx-8 md:mx-16 lg:mx-40 flex flex-col items-start px-4">
-    <div class="w-full text-left mb-8">
-        <h1 class="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-800">Current Reads</h1>
-    </div>
-    {#if books.length === 0}
-      <div class="w-full flex justify-center items-center py-16">
-        <p class="text-2xl text-gray-500">No current reads</p>
-      </div>
-    {:else}
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 w-full">
-        {#each books as book}
-            <div class="flex flex-col rounded-lg overflow-hidden w-full duration-300 transform hover:scale-105 shadow-lg">
-                <div class="w-full h-64 md:h-72 lg:h-64 bg-gray-300 flex items-center justify-center">
-                    {#if book.bookId}
+    <!-- To Be Read Section -->
+    <section class="mt-16 mx-8 md:mx-16 lg:mx-40 flex flex-col items-start px-4">
+        <div class="w-full text-left mb-8">
+            <h1 class="text-4xl md:text-5xl lg:text-4xl font-bold text-gray-600">
+                To Be Read ({toBeReadList?.length || 0})
+            </h1>
+            <button class="text-lg mt-2 font-semibold text-blue-500">View All</button>
+        </div>
+        
+        <!-- Grid Container -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {#each (toBeReadList?.slice(0, 4) || []).reverse() as book}
+                <div class="flex flex-col">
+                    <div class="relative w-full bg-gray-300 rounded-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 group">
                         <img
-                            src={book.thumbnail}
-                            alt={`Cover of ${book.title} by ${book.author}`}
-                            class="max-w-full max-h-full object-contain"
+                            src={book.thumbnail || 'default-cover-image-url'}
+                            alt="Book Cover"
                             loading="lazy"
+                            decoding="async"
+                            on:load={(e) => (e.currentTarget as HTMLImageElement).style.opacity = '1'}
+                            style="opacity: 0; transition: opacity 0.3s"
+                            class="w-full h-64 sm:h-72 md:h-80 lg:h-64 rounded-lg"
                         />
-                    {:else}
-                        <div class="text-gray-500">No Cover Available</div>
-                    {/if}
-                </div>
-                <div class="flex flex-col flex-grow p-6 bg-white">
-                    <h2 
-                        class="text-xl font-semibold text-gray-800 mb-2 h-14 line-clamp-2 overflow-hidden"
-                        title={book.title}
-                    >
-                        {book.title}
-                    </h2>
-                    <p class="text-gray-600 mb-4 h-6 line-clamp-1">{book.author}</p>
-                    <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
-                        <div
-                            class="h-full bg-green-500 transition-all duration-300"
-                            style="width: {book.progress}%;"
-                        ></div>
-                    </div>
-                    <div class="mt-2 flex justify-between items-center">
-                        <span class="text-sm text-gray-700">{Math.round(book.progress)}%</span>
-                        <div class="space-x-2">
-                            <button class="text-blue-500 hover:text-blue-700">Details</button>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 rounded-lg">
+                            <button 
+                                class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                on:click={() => startReading(book.bookId, 'toBeRead')}
+                                disabled={isStartingBook}
+                            >
+                                {isStartingBook ? 'Loading...' : 'Details'}
+                            </button>
+                            <button 
+                                class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                on:click={() => startReading(book.bookId, 'toBeRead')}
+                                disabled={isStartingBook}
+                            >
+                                {isStartingBook ? 'Starting...' : 'Start'}
+                            </button>
+                            <button 
+                                class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                on:click={() => RemoveFromList(book.bookId, 'toBeRead')}
+                                disabled={isRemovingFromList}
+                            >
+                                {isRemovingFromList? 'Removing...' : 'Remove'}
+                            </button>
                         </div>
                     </div>
-                    <button 
-                        on:click={() => openModal(book)} 
-                        class="w-full h-8 mt-4 bg-gray-300 rounded-full hover:bg-blue-500"
-                    >
-                        Update Progress
-                    </button>
                 </div>
+            {/each}
+            {#if (toBeReadList?.length || 0) >= 5}
+                <div class="flex items-center justify-center text-gray-600 text-6xl">...</div>
+            {/if}
+        </div>
+    </section>
+
+    <!-- Read Section -->
+    <section class="mt-16 mx-8 md:mx-16 lg:mx-40 flex flex-col items-start px-4">
+        <div class="w-full text-left mb-8">
+            <h1 class="text-4xl md:text-5xl lg:text-4xl font-bold text-gray-600">
+                Read ({readList?.length})
+            </h1>
+            <button class="text-lg mt-2 font-semibold text-blue-500">View All</button>
+        </div>
+        
+        <!-- Grid Container -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+            {#each (readList?.slice(0, 4) || []).reverse() as book}
+                <div class="flex flex-col">
+                    <div class="relative w-full bg-gray-300 rounded-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 group">
+                        <img
+                            src={book.thumbnail || 'default-cover-image-url'}
+                            alt="Book Cover"
+                            loading="lazy"
+                            decoding="async"
+                            on:load={(e) => (e.currentTarget as HTMLImageElement).style.opacity = '1'}
+                            style="opacity: 0; transition: opacity 0.3s"
+                            class="w-full h-64 sm:h-72 md:h-80 lg:h-64 rounded-lg"
+                        />
+                        <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 rounded-lg">
+                            <button 
+                                class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                on:click={() => startReading(book.bookId, 'read')}
+                                disabled={isStartingBook}
+                            >
+                                {isStartingBook ? 'Loading...' : 'Details'}
+                            </button>
+                            <button 
+                                class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                on:click={() => startReading(book.bookId, 'read')}
+                                disabled={isStartingBook}
+                            >
+                                {isStartingBook ? 'Starting...' : 'Start'}
+                            </button>
+                            <button 
+                                class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                on:click={() => RemoveFromList(book.bookId, 'read')}
+                                disabled={isRemovingFromList}
+                            >
+                                {isRemovingFromList? 'Removing...' : 'Remove'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            {/each}
+            {#if (toBeReadList?.length || 0) >= 5}
+                <div class="flex items-center justify-center text-gray-600 text-6xl">...</div>
+            {/if}
+        </div>
+    </section>
+
+    <!-- Custom Lists Section -->
+    {#each Object.entries(customLists) as [listName, books]}
+        <section class="mt-16 mx-8 md:mx-16 lg:mx-40 flex flex-col items-start px-4">
+            <div class="w-full text-left mb-8">
+                <h1 class="text-4xl md:text-5xl lg:text-4xl font-bold text-gray-600">
+                    {listName} ({books.length})
+                </h1>
+                <button class="text-lg mt-2 font-semibold text-blue-500">View All</button>
             </div>
-        {/each}
-      </div>
-    {/if}
-  </section>
-
-  <!-- Example Divider -->
-  <hr class="my-16 border-gray-300" />
-
-  <!-- To Be Read Section -->
-  <section class="mt-16 mx-8 md:mx-16 lg:mx-40 flex flex-col items-start px-4">
-      <div class="w-full text-left mb-8">
-          <h1 class="text-4xl md:text-5xl lg:text-4xl font-bold text-gray-600">
-              To Be Read ({toBeReadList?.length || 0})
-          </h1>
-          <button class="text-lg mt-2 font-semibold text-blue-500">View All</button>
-      </div>
-      
-      <!-- Grid Container -->
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {#each (toBeReadList?.slice(0, 4) || []).reverse() as book}
-              <div class="flex flex-col">
-                  <div class="relative w-full bg-gray-300 rounded-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 group">
-                      <img
-                          src={book.thumbnail || 'default-cover-image-url'}
-                          alt="Book Cover"
-                          loading="lazy"
-                          decoding="async"
-                          on:load={(e) => (e.currentTarget as HTMLImageElement).style.opacity = '1'}
-                          style="opacity: 0; transition: opacity 0.3s"
-                          class="w-full h-64 sm:h-72 md:h-80 lg:h-64 rounded-lg"
-                      />
-                      <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 rounded-lg">
-                          <button 
-                              class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                              on:click={() => startReading(book.bookId, 'toBeRead')}
-                              disabled={isStartingBook}
-                          >
-                              {isStartingBook ? 'Loading...' : 'Details'}
-                          </button>
-                          <button 
-                              class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                              on:click={() => startReading(book.bookId, 'toBeRead')}
-                              disabled={isStartingBook}
-                          >
-                              {isStartingBook ? 'Starting...' : 'Start'}
-                          </button>
-                          <button 
-                              class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                              on:click={() => RemoveFromList(book.bookId, 'toBeRead')}
-                              disabled={isRemovingFromList}
-                          >
-                              {isRemovingFromList? 'Removing...' : 'Remove'}
-                          </button>
-                      </div>
-                  </div>
-              </div>
-          {/each}
-          {#if (toBeReadList?.length || 0) >= 5}
-              <div class="flex items-center justify-center text-gray-600 text-6xl">...</div>
-          {/if}
-      </div>
-  </section>
-
-  <!-- Read Section -->
-  <section class="mt-16 mx-8 md:mx-16 lg:mx-40 flex flex-col items-start px-4">
-      <div class="w-full text-left mb-8">
-          <h1 class="text-4xl md:text-5xl lg:text-4xl font-bold text-gray-600">
-              Read ({readList?.length})
-          </h1>
-          <button class="text-lg mt-2 font-semibold text-blue-500">View All</button>
-      </div>
-      
-      <!-- Grid Container -->
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {#each (readList?.slice(0, 4) || []).reverse() as book}
-              <div class="flex flex-col">
-                  <div class="relative w-full bg-gray-300 rounded-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105 group">
-                      <img
-                          src={book.thumbnail || 'default-cover-image-url'}
-                          alt="Book Cover"
-                          loading="lazy"
-                          decoding="async"
-                          on:load={(e) => (e.currentTarget as HTMLImageElement).style.opacity = '1'}
-                          style="opacity: 0; transition: opacity 0.3s"
-                          class="w-full h-64 sm:h-72 md:h-80 lg:h-64 rounded-lg"
-                      />
-                      <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 rounded-lg">
-                          <button 
-                              class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                              on:click={() => startReading(book.bookId, 'read')}
-                              disabled={isStartingBook}
-                          >
-                              {isStartingBook ? 'Loading...' : 'Details'}
-                          </button>
-                          <button 
-                              class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                              on:click={() => startReading(book.bookId, 'read')}
-                              disabled={isStartingBook}
-                          >
-                              {isStartingBook ? 'Starting...' : 'Start'}
-                          </button>
-                          <button 
-                              class="w-3/4 h-8 bg-white text-gray-800 rounded-full hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                              on:click={() => RemoveFromList(book.bookId, 'read')}
-                              disabled={isRemovingFromList}
-                          >
-                              {isRemovingFromList? 'Removing...' : 'Remove'}
-                          </button>
-                      </div>
-                  </div>
-              </div>
-          {/each}
-          {#if (toBeReadList?.length || 0) >= 5}
-              <div class="flex items-center justify-center text-gray-600 text-6xl">...</div>
-          {/if}
-      </div>
-  </section>
-
-  <!-- Custom Lists Section -->
-  {#each Object.entries(customLists) as [listName, books]}
-      <section class="mt-16 mx-8 md:mx-16 lg:mx-40 flex flex-col items-start px-4">
-          <div class="w-full text-left mb-8">
-              <h1 class="text-4xl md:text-5xl lg:text-4xl font-bold text-gray-600">
-                  {listName} ({books.length})
-              </h1>
-              <button class="text-lg mt-2 font-semibold text-blue-500">View All</button>
-          </div>
-          
-          <!-- Grid Container -->
-          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-              {#each books.slice(0, 4).reverse() as book}
-                  <div class="flex flex-col rounded-lg bg-gray-300 shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105">
-                      <div class="relative w-full">
-                          <img
-                              src={book.thumbnail || 'default-cover-image-url'}
-                              alt="Book Cover"
-                              loading="lazy"
-                              decoding="async"
-                              on:load={(e) => (e.currentTarget as HTMLImageElement).style.opacity = '1'}
-                              style="opacity: 0; transition: opacity 0.3s"
-                              class="w-full h-64 sm:h-72 md:h-80 lg:h-64 rounded-lg"
-                          />
-                      </div>
-                  </div>
-              {/each}
-              {#if books.length > 4}
-                  <div class="flex items-center justify-center text-gray-600 text-xl">...</div>
-              {/if}
-          </div>
-      </section>
-  {/each}
-</main>
-
-<footer class="bg-gray-800 text-white mt-32">
-  <div class="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-      <div>
-        <h3 class="text-2xl font-bold mb-4">BookIt</h3>
-        <p class="text-gray-400">Track your reading journey, one page at a time.</p>
-      </div>
-      <div>
-        <h4 class="text-lg font-semibold mb-4">Quick Links</h4>
-        <ul class="space-y-2">
-          <li><a href="/" class="text-gray-400 hover:text-white">Home</a></li>
-          <li><a href="/about" class="text-gray-400 hover:text-white">About</a></li>
-          <li><a href="/profile" class="text-gray-400 hover:text-white">Profile</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4 class="text-lg font-semibold mb-4">Contact</h4>
-        <ul class="space-y-2">
-          <li class="text-gray-400">Email: support@bookit.com</li>
-          <li class="text-gray-400">Follow us on Twitter @BookItApp</li>
-        </ul>
-      </div>
-    </div>
-    <div class="mt-8 pt-8 border-t border-gray-700 text-center">
-      <p class="text-gray-400">&copy; {new Date().getFullYear()} BookIt. All rights reserved.</p>
-    </div>
-  </div>
-</footer>
+            
+            <!-- Grid Container -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                {#each books.slice(0, 4).reverse() as book}
+                    <div class="flex flex-col rounded-lg bg-gray-300 shadow-lg hover:shadow-2xl transition-shadow duration-300 transform hover:scale-105">
+                        <div class="relative w-full">
+                            <img
+                                src={book.thumbnail || 'default-cover-image-url'}
+                                alt="Book Cover"
+                                loading="lazy"
+                                decoding="async"
+                                on:load={(e) => (e.currentTarget as HTMLImageElement).style.opacity = '1'}
+                                style="opacity: 0; transition: opacity 0.3s"
+                                class="w-full h-64 sm:h-72 md:h-80 lg:h-64 rounded-lg"
+                            />
+                        </div>
+                    </div>
+                {/each}
+                {#if books.length > 4}
+                    <div class="flex items-center justify-center text-gray-600 text-xl">...</div>
+                {/if}
+            </div>
+        </section>
+    {/each}
+  </main>
+  <div class="mb-32"></div>
 </div>
 
 <!-- Modal Markup -->

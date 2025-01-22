@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/FriedGlue/BookIt/api/pkg/shared"
 	"github.com/aws/aws-lambda-go/events"
@@ -127,7 +128,7 @@ func HandleSignIn(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 
 	cip := newCognitoClient()
 	input := &cognitoidentityprovider.InitiateAuthInput{
-		AuthFlow: aws.String("USER_PASSWORD_AUTH"), // or "ADMIN_USER_PASSWORD_AUTH" if you use admin creds
+		AuthFlow: aws.String("USER_PASSWORD_AUTH"),
 		ClientId: aws.String(userPoolClientID),
 		AuthParameters: map[string]*string{
 			"USERNAME": aws.String(payload.Username),
@@ -149,6 +150,81 @@ func HandleSignIn(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 		"IdToken":      aws.StringValue(output.AuthenticationResult.IdToken),
 		"AccessToken":  aws.StringValue(output.AuthenticationResult.AccessToken),
 		"RefreshToken": aws.StringValue(output.AuthenticationResult.RefreshToken),
+	}
+
+	body, _ := json.Marshal(tokens)
+
+	// Create response with refresh token cookie
+	response := events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       string(body),
+		Headers: map[string]string{
+			"Set-Cookie": fmt.Sprintf("refreshToken=%s; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Strict",
+				aws.StringValue(output.AuthenticationResult.RefreshToken)),
+		},
+	}
+
+	return response
+}
+
+// ----------------- Sign Out Logic -----------------
+//
+// POST /auth/signout
+//
+
+func HandleSignOut(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	// Return response that clears the refresh token cookie
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Headers: map[string]string{
+			"Set-Cookie": "refreshToken=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT; HttpOnly; Secure; SameSite=Strict",
+		},
+		Body: "Signed out successfully",
+	}
+}
+
+// ----------------- Refresh Token Logic -----------------
+//
+// POST /auth/refresh
+// Headers: { "Authorization": "Bearer <refresh_token>" }
+//
+
+func HandleRefresh(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	// Get refresh token from Authorization header
+	authHeader := request.Headers["Authorization"]
+	if authHeader == "" {
+		return shared.ErrorResponse(401, "No Authorization header provided")
+	}
+
+	// Extract token from "Bearer <token>"
+	parts := strings.Split(authHeader, " ")
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		return shared.ErrorResponse(401, "Invalid Authorization header format")
+	}
+	refreshToken := parts[1]
+
+	cip := newCognitoClient()
+	input := &cognitoidentityprovider.InitiateAuthInput{
+		AuthFlow: aws.String("REFRESH_TOKEN_AUTH"),
+		ClientId: aws.String(userPoolClientID),
+		AuthParameters: map[string]*string{
+			"REFRESH_TOKEN": aws.String(refreshToken),
+		},
+	}
+
+	output, err := cip.InitiateAuth(input)
+	if err != nil {
+		return shared.ErrorResponse(401, fmt.Sprintf("Refresh token error: %v", err))
+	}
+
+	if output.AuthenticationResult == nil {
+		return shared.ErrorResponse(401, "No authentication result returned")
+	}
+
+	// Build a JSON response with the new tokens
+	tokens := map[string]string{
+		"IdToken":     aws.StringValue(output.AuthenticationResult.IdToken),
+		"AccessToken": aws.StringValue(output.AuthenticationResult.AccessToken),
 	}
 
 	body, _ := json.Marshal(tokens)

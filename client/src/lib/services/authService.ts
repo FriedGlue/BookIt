@@ -1,4 +1,4 @@
-import { setToken, clearToken } from '$lib/stores/authStore';
+import { setTokens, clearTokens } from '$lib/stores/authStore';
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 
 export class AuthService {
@@ -8,7 +8,8 @@ export class AuthService {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ username, password }),
+            credentials: 'omit'
         });
 
         if (!response.ok) {
@@ -16,15 +17,32 @@ export class AuthService {
         }
 
         const data = await response.json();
-        setToken(data.IdToken);
-
-        // Set cookie for server-side rendering
-        document.cookie = `token=${data.IdToken}; path=/; max-age=3600; SameSite=Strict`;
+        
+        // Set tokens in localStorage via store
+        setTokens(data.IdToken, data.RefreshToken);
+        
+        // Set cookies via a server endpoint
+        await fetch('/api/set-auth-cookies', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                token: data.IdToken,
+                refreshToken: data.RefreshToken
+            })
+        });
     }
 
     logout(): void {
-        clearToken();
-        // Clear cookie
-        document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+        clearTokens();
+        
+        // Only call signout endpoint if not in local development
+        if (!PUBLIC_API_BASE_URL.includes('localhost')) {
+            fetch(`${PUBLIC_API_BASE_URL}/auth/signout`, {
+                method: 'POST',
+                credentials: 'include'
+            }).catch(console.error);
+        }
     }
 }

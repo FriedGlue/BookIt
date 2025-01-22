@@ -1,6 +1,13 @@
 <script lang="ts">
 	import '../app.css';
-	let { children } = $props();
+	import NavBar from '$lib/components/NavBar.svelte';
+	import Footer from '$lib/components/Footer.svelte';
 </script>
 
-{@render children()}
+<div class="min-h-screen flex flex-col">
+	<NavBar />
+	<main class="flex-grow flex flex-col">
+		<slot />
+	</main>
+	<Footer />
+</div>

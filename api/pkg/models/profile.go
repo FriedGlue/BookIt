@@ -42,26 +42,32 @@ type UserLists struct {
 }
 
 type ToBeReadItem struct {
-	BookID    string `json:"bookId"`
-	Thumbnail string `json:"thumbnail,omitempty"`
-	AddedDate string `json:"addedDate,omitempty"`
-	Order     int    `json:"order,omitempty"`
+	BookID    string   `json:"bookId"`
+	Thumbnail string   `json:"thumbnail,omitempty"`
+	AddedDate string   `json:"addedDate,omitempty"`
+	Order     int      `json:"order,omitempty"`
+	Title     string   `json:"title,omitempty"`
+	Authors   []string `json:"authors,omitempty"`
 }
 
 type ReadItem struct {
-	BookID        string `json:"bookId"`
-	Thumbnail     string `json:"thumbnail,omitempty"`
-	CompletedDate string `json:"completedDate,omitempty"`
-	Rating        int    `json:"rating,omitempty"`
-	Order         int    `json:"order,omitempty"`
-	Review        string `json:"review,omitempty"`
+	BookID        string   `json:"bookId"`
+	Thumbnail     string   `json:"thumbnail,omitempty"`
+	CompletedDate string   `json:"completedDate,omitempty"`
+	Rating        int      `json:"rating,omitempty"`
+	Order         int      `json:"order,omitempty"`
+	Review        string   `json:"review,omitempty"`
+	Title         string   `json:"title,omitempty"`
+	Authors       []string `json:"authors,omitempty"`
 }
 
 type CustomListItem struct {
-	BookID    string `json:"bookId"`
-	Thumbnail string `json:"thumbnail,omitempty"`
-	AddedDate string `json:"addedDate,omitempty"`
-	Order     int    `json:"order,omitempty"`
+	BookID    string   `json:"bookId"`
+	Thumbnail string   `json:"thumbnail,omitempty"`
+	AddedDate string   `json:"addedDate,omitempty"`
+	Order     int      `json:"order,omitempty"`
+	Title     string   `json:"title,omitempty"`
+	Authors   []string `json:"authors,omitempty"`
 }
 
 type ReadingLogItem struct {

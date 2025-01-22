@@ -13,6 +13,7 @@ export const load = (async ({ fetch, cookies }) => {
         });
 
         if (!response.ok) {
+            console.error('Profile fetch failed:', response.status, response.statusText);
             throw new Error('Failed to fetch profile');
         }
 

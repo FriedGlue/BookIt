@@ -175,6 +175,8 @@ func AddToList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResp
 			BookID:    bookDetails.BookID,
 			Thumbnail: bookDetails.CoverImageURL,
 			AddedDate: currentTime,
+			Title:     bookDetails.Title,
+			Authors:   bookDetails.Authors,
 			Order:     len(profile.Lists.ToBeRead),
 		}
 		profile.Lists.ToBeRead = append(profile.Lists.ToBeRead, item)
@@ -185,6 +187,8 @@ func AddToList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResp
 			Thumbnail:     bookDetails.CoverImageURL,
 			Rating:        addReq.Rating,
 			Review:        addReq.Review,
+			Title:         bookDetails.Title,
+			Authors:       bookDetails.Authors,
 			Order:         len(profile.Lists.Read),
 		}
 		profile.Lists.Read = append(profile.Lists.Read, item)
@@ -193,6 +197,8 @@ func AddToList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResp
 			BookID:    bookDetails.BookID,
 			Thumbnail: bookDetails.CoverImageURL,
 			AddedDate: currentTime,
+			Title:     bookDetails.Title,
+			Authors:   bookDetails.Authors,
 			Order:     len(profile.Lists.CustomLists[addReq.ListType]),
 		}
 		if profile.Lists.CustomLists == nil {

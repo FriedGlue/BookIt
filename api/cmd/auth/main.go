@@ -15,9 +15,11 @@ func addCORSHeaders(response events.APIGatewayProxyResponse) events.APIGatewayPr
 	if response.Headers == nil {
 		response.Headers = map[string]string{}
 	}
-	response.Headers["Access-Control-Allow-Origin"] = "*"
+	response.Headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
 	response.Headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-	response.Headers["Access-Control-Allow-Headers"] = "Content-Type"
+	response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token"
+	response.Headers["Access-Control-Allow-Credentials"] = "true"
+	response.Headers["Content-Type"] = "application/json"
 	return response
 }
 
@@ -40,12 +42,31 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 		case path == "/auth/signup" && method == "POST":
 			log.Println("Invoking HandleSignUp")
 			response = auth.HandleSignUp(request)
+
 		case path == "/auth/confirm" && method == "POST":
 			log.Println("Invoking HandleConfirmSignUp")
 			response = auth.HandleConfirmSignUp(request)
+
 		case path == "/auth/signin" && method == "POST":
 			log.Println("Invoking HandleSignIn")
 			response = auth.HandleSignIn(request)
+
+		case path == "/auth/refresh" && method == "POST":
+			log.Println("Invoking HandleRefresh")
+			response = auth.HandleRefresh(request)
+
+		case path == "/auth/signout" && method == "POST":
+			log.Println("Invoking HandleSignOut")
+			response = auth.HandleSignOut(request)
+
+		case method == "OPTIONS":
+			log.Println("Handling OPTIONS (preflight) for path:", path)
+			// Return a 200 with no body, but addCORSHeaders will add the necessary CORS headers
+			response = events.APIGatewayProxyResponse{
+				StatusCode: 200,
+				Body:       "",
+			}
+
 		default:
 			log.Printf("Method not allowed on /auth: Method=%s, Path=%s\n", method, path)
 			response = events.APIGatewayProxyResponse{

@@ -228,14 +228,6 @@ Resources:
 
       # For these auth endpoints, override the default authorizer to "NONE"
       Events:
-        PreflightSignUpRoute:
-          Type: Api
-          Properties:
-            Path: /auth/signup
-            Method: OPTIONS
-            RestApiId: !Ref BookitApi
-            Auth:
-              Authorizer: NONE
 
         SignUpRoute:
           Type: Api
@@ -245,15 +237,6 @@ Resources:
             RestApiId: !Ref BookitApi
             Auth:
               Authorizer: NONE   
-
-        PreflightConfirmRoute:
-          Type: Api
-          Properties:
-            Path: /auth/confirm
-            Method: OPTIONS
-            RestApiId: !Ref BookitApi
-            Auth:
-              Authorizer: NONE
 
         ConfirmRoute:
           Type: Api
@@ -272,6 +255,21 @@ Resources:
             RestApiId: !Ref BookitApi
             Auth:
               Authorizer: NONE   
+
+        SignOutRoute:
+          Type: Api
+          Properties:
+            Path: /auth/signout
+            Method: POST
+            RestApiId: !Ref BookitApi
+
+        RefreshRoute:
+          Type: Api
+          Properties:
+            Path: /auth/refresh
+            Method: POST
+            RestApiId: !Ref BookitApi
+
 Outputs:
   ApiUrl:
     Description: "API Gateway endpoint URL"

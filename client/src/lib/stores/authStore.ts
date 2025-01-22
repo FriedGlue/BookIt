@@ -1,26 +1,42 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 
-// Create a writable store for the token
-export const token = writable<string>(
-    browser ? localStorage.getItem('token') || '' : ''
+// Create writable stores for both tokens
+export const idToken = writable<string>(
+    browser ? localStorage.getItem('idToken') ?? '' : ''
+);
+
+export const refreshToken = writable<string>(
+    browser ? localStorage.getItem('refreshToken') ?? '' : ''
 );
 
 // Subscribe to changes and update localStorage
 if (browser) {
-    token.subscribe((value) => {
+    idToken.subscribe((value) => {
         if (value) {
-            localStorage.setItem('token', value);
+            localStorage.setItem('idToken', value);
         } else {
-            localStorage.removeItem('token');
+            localStorage.removeItem('idToken');
+        }
+    });
+
+    refreshToken.subscribe((value) => {
+        if (value) {
+            localStorage.setItem('refreshToken', value);
+        } else {
+            localStorage.removeItem('refreshToken');
         }
     });
 }
 
-export function setToken(newToken: string) {
-    token.set(newToken);
+export function setTokens(newIdToken: string, newRefreshToken?: string) {
+    idToken.set(newIdToken);
+    if (newRefreshToken) {
+        refreshToken.set(newRefreshToken);
+    }
 }
 
-export function clearToken() {
-    token.set('');
+export function clearTokens() {
+    idToken.set('');
+    refreshToken.set('');
 } 

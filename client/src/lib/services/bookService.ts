@@ -1,5 +1,5 @@
 import type { Profile } from '$lib/types';
-import { token } from '$lib/stores/authStore';
+import { idToken } from '$lib/stores/authStore';
 import { get } from 'svelte/store';
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 
@@ -12,7 +12,7 @@ interface SearchResult {
 
 export class BookService {
     private getHeaders() {
-        const currentToken = get(token);
+        const currentToken = get(idToken);
         return {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${currentToken}`
