@@ -16,6 +16,8 @@ export class AuthService {
         }
 
         const data = await response.json();
+
+        console.log(data);
         
         // Set cookies via a server endpoint
         await fetch('/api/set-auth-cookies', {
@@ -24,7 +26,7 @@ export class AuthService {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                token: data.IdToken,
+                idToken: data.IdToken,
                 refreshToken: data.RefreshToken
             }),
             credentials: 'include'

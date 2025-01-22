@@ -4,13 +4,13 @@ import type { CurrentlyReadingItem, Profile } from '$lib/types';
 
 export const load = (async ({ fetch, cookies }) => {
     try {
-        const token = cookies.get('token');
-        const response = await fetch(`${PUBLIC_API_BASE_URL}/profile`, {
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            }
-        });
+        const token = cookies.get('idToken');
+		const response = await fetch(`${PUBLIC_API_BASE_URL}/profile`, {
+			headers: {
+				'Authorization': `Bearer ${token}`,
+				'Content-Type': 'application/json'
+			}
+		});
 
         if (!response.ok) {
             console.error('Profile fetch failed:', response.status, response.statusText);

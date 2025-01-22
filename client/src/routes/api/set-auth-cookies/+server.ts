@@ -2,10 +2,10 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
-    const { token, refreshToken } = await request.json();
+    const { idToken, refreshToken } = await request.json();
 
     // Set the cookies
-    cookies.set('token', token, {
+    cookies.set('idToken', idToken, {
         path: '/',
         maxAge: 3600,
         sameSite: 'none',
@@ -25,7 +25,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 };
 
 export const DELETE: RequestHandler = async ({ cookies }) => {
-    cookies.delete('token', { path: '/', sameSite: 'none', secure: true });
+    cookies.delete('idToken', { path: '/', sameSite: 'none', secure: true });
     cookies.delete('refreshToken', { path: '/', sameSite: 'none', secure: true });
     return json({ success: true });
 }; 

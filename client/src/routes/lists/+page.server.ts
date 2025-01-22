@@ -4,7 +4,7 @@ import type { Profile } from '$lib/types';
 
 export const load = (async ({ fetch, cookies }) => {
 	try {
-        const token = cookies.get('token');
+        const token = cookies.get('idToken');
 
 		if (!token) {
 			console.log('No token found');
