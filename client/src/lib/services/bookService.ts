@@ -1,117 +1,109 @@
-import type { Profile } from '$lib/types';
-import { idToken } from '$lib/stores/authStore';
-import { get } from 'svelte/store';
+// src/lib/services/BookService.ts
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
+import type { Profile } from '$lib/types';
 
 interface SearchResult {
-    bookId: string;
-    title: string;
-    authors?: string[];
-    thumbnail?: string;
+	bookId: string;
+	title: string;
+	authors?: string[];
+	thumbnail?: string;
 }
 
 export class BookService {
-    private getHeaders() {
-        const currentToken = get(idToken);
-        return {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${currentToken}`
-        };
-    }
+	private token: string;
 
-    async getProfile(): Promise<Profile> {
-        const response = await fetch(`${PUBLIC_API_BASE_URL}/profile`, {
-            method: "GET",
-            headers: this.getHeaders()
-        });
+	constructor(token: string) {
+		this.token = token;
+	}
 
-        if (!response.ok) {
-            throw new Error('Failed to fetch profile');
-        }
+	private getOptions(method: string, body?: unknown) {
+		return {
+			method,
+			credentials: 'include' as RequestCredentials,
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${this.token}` // Attach your token as a Bearer token
+			},
+			body: body ? JSON.stringify(body) : undefined
+		};
+	}
 
-        return await response.json();
-    }
+	async getProfile(): Promise<Profile> {
+		const response = await fetch(`${PUBLIC_API_BASE_URL}/profile`, this.getOptions('GET'));
+		if (!response.ok) {
+			throw new Error('Failed to fetch profile');
+		}
+		return await response.json();
+	}
 
-    async updateBookProgress(bookId: string, currentPage: number): Promise<void> {
-        const response = await fetch(`${PUBLIC_API_BASE_URL}/currently-reading`, {
-            method: "PUT",
-            headers: this.getHeaders(),
-            body: JSON.stringify({ bookId, currentPage })
-        });
+	async updateBookProgress(bookId: string, currentPage: number): Promise<void> {
+		const response = await fetch(
+			`${PUBLIC_API_BASE_URL}/currently-reading`, 
+			this.getOptions('PUT', { bookId, currentPage })
+		);
+		if (!response.ok) {
+			throw new Error('Failed to update book progress');
+		}
+	}
 
-        if (!response.ok) {
-            throw new Error('Failed to update book progress');
-        }
-    }
+	async removeFromList(bookId: string, listType: string): Promise<void> {
+		const response = await fetch(
+			`${PUBLIC_API_BASE_URL}/list?listType=${listType}&bookId=${bookId}`,
+			this.getOptions('DELETE')
+		);
+		if (!response.ok) {
+			throw new Error('Failed to remove book from list');
+		}
+	}
 
-    async removeFromList(bookId: string, listType: string): Promise<void> {
-        const response = await fetch(`${PUBLIC_API_BASE_URL}/list?listType=${listType}&bookId=${bookId}`, {
-            method: "DELETE",
-            headers: this.getHeaders()
-        });
+	async removeFromCurrentlyReading(bookId: string): Promise<void> {
+		const response = await fetch(
+			`${PUBLIC_API_BASE_URL}/currently-reading?bookId=${bookId}`,
+			this.getOptions('DELETE')
+		);
+		if (!response.ok) {
+			throw new Error('Failed to remove book from currently reading');
+		}
+	}
 
-        if (!response.ok) {
-            throw new Error('Failed to delete book');
-        }
-    }
+	async startReading(bookId: string, listName: string): Promise<void> {
+		const response = await fetch(
+			`${PUBLIC_API_BASE_URL}/currently-reading/start-reading`,
+			this.getOptions('POST', { bookId, listName })
+		);
+		if (!response.ok) {
+			throw new Error('Failed to start reading book');
+		}
+	}
 
-    async removeFromCurrentlyReading(bookId: string): Promise<void> {
-        const response = await fetch(`${PUBLIC_API_BASE_URL}/currently-reading?bookId=${bookId}`, {
-            method: "DELETE",
-            headers: this.getHeaders()
-        });
+	async finishReading(bookId: string): Promise<void> {
+		const response = await fetch(
+			`${PUBLIC_API_BASE_URL}/currently-reading/finish-reading`,
+			this.getOptions('POST', { bookId })
+		);
+		if (!response.ok) {
+			throw new Error('Failed to finish reading book');
+		}
+	}
 
-        if (!response.ok) {
-            throw new Error('Failed to delete book');
-        }
-    }
+	async searchBooks(query: string): Promise<SearchResult[]> {
+		const response = await fetch(
+			`${PUBLIC_API_BASE_URL}/books/search?q=${encodeURIComponent(query)}`,
+			this.getOptions('GET')
+		);
+		if (!response.ok) {
+			throw new Error('Failed to search books');
+		}
+		return await response.json();
+	}
 
-    async startReading(bookId: string, listName: string): Promise<void> {
-        const response = await fetch(`${PUBLIC_API_BASE_URL}/currently-reading/start-reading`, {
-            method: "POST",
-            headers: this.getHeaders(),
-            body: JSON.stringify({ bookId, listName })
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to start reading book');
-        }
-    }
-
-    async finishReading(bookId: string): Promise<void> {
-        const response = await fetch(`${PUBLIC_API_BASE_URL}/currently-reading/finish-reading`, {
-            method: "POST",
-            headers: this.getHeaders(),
-            body: JSON.stringify({ bookId })
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to finish reading book');
-        }
-    }
-
-    async searchBooks(query: string): Promise<SearchResult[]> {
-        const response = await fetch(`${PUBLIC_API_BASE_URL}/books/search?q=${encodeURIComponent(query)}`, {
-            method: "GET",
-            headers: this.getHeaders()
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to search books');
-        }
-
-        return await response.json();
-    }
-
-    async addToList(bookId: string, listType: string): Promise<void> {
-        const response = await fetch(`${PUBLIC_API_BASE_URL}/list`, {
-            method: 'POST',
-            headers: this.getHeaders(),
-            body: JSON.stringify({ bookId, listType })
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to add book to list');
-        }
-    }
-} 
+	async addToList(bookId: string, listType: string): Promise<void> {
+		const response = await fetch(
+			`${PUBLIC_API_BASE_URL}/list`,
+			this.getOptions('POST', { bookId, listType })
+		);
+		if (!response.ok) {
+			throw new Error('Failed to add book to list');
+		}
+	}
+}

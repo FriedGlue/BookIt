@@ -18,7 +18,7 @@ func addCORSHeaders(response events.APIGatewayProxyResponse) events.APIGatewayPr
 	response.Headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
 	response.Headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
 	response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token"
-	response.Headers["Access-Control-Allow-Credentials"] = "true"
+	response.Headers["Access-Control-Allow-Credentials"] = "TRUE"
 	response.Headers["Content-Type"] = "application/json"
 	return response
 }

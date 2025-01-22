@@ -13,6 +13,7 @@ export interface Book {
       thumbnail?: string;
       totalPages?: number;
       progress?: ReadingProgress;
+      _listType?: string;
   }
 
 export interface CurrentlyReadingItem {
@@ -59,4 +60,6 @@ export interface ReadItem {
       order?: number;
       review?: string;
       thumbnail?: string;
+      title?: string;
+      authors?: string[];
   }

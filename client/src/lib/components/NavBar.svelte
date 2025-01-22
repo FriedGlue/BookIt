@@ -1,9 +1,5 @@
 <script lang="ts">
-  import { BookService } from '$lib/services/bookService';
   import { AuthService } from '$lib/services/authService';
-  import type { DisplayBook } from '$lib/types';
-  import { idToken } from '$lib/stores/authStore';
-  import { page } from '$app/stores';
   import { goto } from '$app/navigation';
 
   let searchQuery = '';
@@ -13,25 +9,64 @@
   let isAddingToList = false;
   let toBeReadList: any[] = [];
 
-  const bookService = new BookService();
   const authService = new AuthService();
 
+  export let authenticated: boolean;
+
+  // ---- Move "searchBooks" to call your local route:
   async function handleSearch() {
     if (!searchQuery.trim()) {
-        searchResults = [];
-        showSearchResults = false;
-        return;
+      searchResults = [];
+      showSearchResults = false;
+      return;
     }
 
     try {
-        isSearching = true;
-        searchResults = await bookService.searchBooks(searchQuery);
-        showSearchResults = true;
-    } catch (error) {
-        console.error('Error searching books:', error);
+      isSearching = true;
+      const res = await fetch(`/api/books/search?q=${encodeURIComponent(searchQuery)}`);
+      if (!res.ok) {
+        console.error('Error searching books:', await res.text());
         searchResults = [];
+        return;
+      }
+      searchResults = await res.json();
+      showSearchResults = true;
+    } catch (error) {
+      console.error('Error searching books:', error);
+      searchResults = [];
     } finally {
-        isSearching = false;
+      isSearching = false;
+    }
+  }
+
+  // ---- Move "addToList" to call your local route:
+  async function addToList(bookId: string) {
+    if (isAddingToList) return;
+    try {
+      isAddingToList = true;
+      const res = await fetch('/api/books/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ bookId, listType: 'toBeRead' })
+      });
+
+      if (!res.ok) {
+        console.error('Error adding book to list:', await res.text());
+        return;
+      }
+
+      // (Optionally re-fetch the profile or do your own update logic)
+      // const profile = await bookService.getProfile();
+      // toBeReadList = profile.lists?.toBeRead || [];
+
+      showSearchResults = false;
+      searchQuery = '';
+    } catch (error) {
+      console.error('Error adding book to list:', error);
+    } finally {
+      isAddingToList = false;
     }
   }
 
@@ -43,12 +78,11 @@
   function handleClickOutside(event: MouseEvent) {
     const target = event.target as HTMLElement;
     if (!target.closest('.search-container')) {
-        showSearchResults = false;
+      showSearchResults = false;
     }
   }
-
-  $: isLoggedIn = !!$idToken;
 </script>
+
 
 <nav class="flex flex-wrap items-center justify-between bg-blue-500 p-6">
   <div class="flex items-center space-x-8">
@@ -75,7 +109,7 @@
     <input
       type="text"
       bind:value={searchQuery}
-      on:input={() => handleSearch()}
+      on:input={handleSearch}
       placeholder="Search books..."
       class="w-full px-4 py-2 text-gray-900 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400"
     />
@@ -85,21 +119,7 @@
           <button 
             type="button"
             class="w-full p-4 hover:bg-gray-100 cursor-pointer flex items-center space-x-4 text-left"
-            on:click={async () => {
-              if (isAddingToList) return;
-              try {
-                isAddingToList = true;
-                await bookService.addToList(book.bookId, 'toBeRead');
-                const profile = await bookService.getProfile();
-                toBeReadList = profile.lists?.toBeRead || [];
-                showSearchResults = false;
-                searchQuery = '';
-              } catch (error) {
-                console.error('Error adding book to list:', error);
-              } finally {
-                isAddingToList = false;
-              }
-            }}
+            on:click={() => addToList(book.bookId)}
             disabled={isAddingToList}
             on:keydown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -126,7 +146,7 @@
   </div>
 
   <div class="flex items-center space-x-4">
-    {#if $idToken}
+    {#if authenticated}
       <button
         on:click={handleLogout}
         class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
@@ -156,4 +176,4 @@
   </div>
 </nav>
 
-<svelte:window on:click={handleClickOutside} /> 
+<svelte:window on:click={handleClickOutside} />
