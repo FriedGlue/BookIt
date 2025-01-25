@@ -54,7 +54,10 @@ export const load: PageServerLoad = async ({ fetch }) => {
 
 export const actions: Actions = {
 
-	startReading: async ({ request }) => {
+	startReading: async ({ request, cookies }) => {
+		const token = cookies.get('idToken');
+		if (!token) return { error: 'No token' };
+
 		const formData = await request.formData();
 		const bookId = formData.get('bookId')?.toString();
 		const listName = formData.get('listName')?.toString();
@@ -63,15 +66,14 @@ export const actions: Actions = {
 			return { error: 'Missing form data' };
 		}
 
-		const response = await fetch('/api/books/add', {
-			method: 'POST',
-			body: JSON.stringify({ bookId, listName })
-		});
-		if (!response.ok) {
-			throw new Error('Failed to fetch profile');
+		try {
+			const bookService = new BookService(token);
+			await bookService.startReading(bookId, listName);
+			return { success: true };
+		} catch (err) {
+			console.error('Failed to start reading:', err);
+			return { error: 'Failed to start reading' };
 		}
-		return await response.json();
-
 	},
 
 	viewDetails: async ({ request }) => {

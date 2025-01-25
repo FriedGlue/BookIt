@@ -88,7 +88,7 @@
 										{Math.round(book.progress)}%
 									</span>
 									<div class="space-x-2">
-										<button class="text-blue-500 hover:text-blue-700">Details</button>
+										<a href={`/books/${book.bookId}`} class="text-blue-500 hover:text-blue-700">Details</a>
 									</div>
 								</div>
 								<!-- Progress percentage and button row -->
@@ -154,7 +154,7 @@
 								<!-- "Start" reading form -->
 								<form method="post" action="?/startReading" class="w-3/4" use:enhance>
 									<input type="hidden" name="bookId" value={book.bookId} />
-									<input type="hidden" name="listName" value="currentlyReading" />
+									<input type="hidden" name="listName" value="toBeRead" />
 									<button
 										type="submit"
 										class="h-8 w-full rounded-full bg-white text-gray-800
@@ -232,7 +232,7 @@
 								</a>
 
 								<!-- "Start" reading form -->
-								<form method="post" action="?/startReading" class="w-3/4">
+								<form method="post" action="?/startReading" class="w-3/4" use:enhance>
 									<input type="hidden" name="bookId" value={book.bookId} />
 									<input type="hidden" name="listName" value="read" />
 									<button
@@ -395,8 +395,6 @@
 							on:submit|preventDefault={() => closeModal()}
 						>
 							<input type="hidden" name="bookId" value={selectedBook.bookId} />
-							<input type="hidden" name="currentPage" value={selectedBook.currentPage || 0} />
-							<input type="hidden" name="totalPages" value={selectedBook.totalPages || 1} />
 							<input type="hidden" name="newPageCount" value={newPageCount} />
 
 							<button
