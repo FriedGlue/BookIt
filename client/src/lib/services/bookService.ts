@@ -1,6 +1,6 @@
 // src/lib/services/BookService.ts
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
-import type { Profile } from '$lib/types';
+import type { Book } from '$lib/types';
 
 interface SearchResult {
 	bookId: string;
@@ -28,13 +28,6 @@ export class BookService {
 		};
 	}
 
-	async getProfile(): Promise<Profile> {
-		const response = await fetch(`${PUBLIC_API_BASE_URL}/profile`, this.getOptions('GET'));
-		if (!response.ok) {
-			throw new Error('Failed to fetch profile');
-		}
-		return await response.json();
-	}
 
 	async updateBookProgress(bookId: string, currentPage: number): Promise<void> {
 		const response = await fetch(
@@ -105,5 +98,13 @@ export class BookService {
 		if (!response.ok) {
 			throw new Error('Failed to add book to list');
 		}
+	}
+
+	async getBook(bookId: string): Promise<Book> {
+		const response = await fetch(
+			`${PUBLIC_API_BASE_URL}/books/query?bookId=${bookId}`,
+			this.getOptions('GET')
+		);
+		return await response.json();
 	}
 }

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import type { Book, ReadingProgress, DisplayBook } from '$lib/types';
+	import { enhance } from '$app/forms';
 
 	export let data: PageData;
 
@@ -88,6 +89,11 @@
 	function selectList(listName: string) {
 		selectedList = listName;
 	}
+
+	// Add this new function to handle book removal
+	function removeBook(bookId: string) {
+		displayBooks = displayBooks.filter(book => book.bookId !== bookId);
+	}
 </script>
 
 <div class="flex min-h-screen">
@@ -102,7 +108,7 @@
 						class:selected={selectedList === listName}
 						on:click={() => selectList(listName)}
 					>
-						{listName === 'toBeRead' ? 'To Be Read' : listName}
+						{listName === 'toBeRead' ? 'To Be Read' : listName === 'read' ? 'Read' : listName}
 					</button>
 				</li>
 			{/each}
@@ -112,7 +118,7 @@
 	<!-- Main Content -->
 	<div class="flex-1 bg-gray-100 p-6">
 		<h1 class="mb-6 text-2xl font-bold">
-			{selectedList === 'toBeRead' ? 'To Be Read' : selectedList}
+			{selectedList === 'toBeRead' ? 'To Be Read' : selectedList === 'read' ? 'Read' : selectedList}
 			<span class="ml-2 text-sm text-gray-500">({displayBooks.length})</span>
 		</h1>
 
@@ -148,7 +154,7 @@
 							</div>
 
 							<!-- Remove form (calls removeFromList action) -->
-							<form method="post" action="?/removeFromList" class="mt-2">
+							<form method="post" action="?/removeFromList" class="mt-2" use:enhance on:submit|preventDefault={() => removeBook(book.bookId)}>
 								<!-- Hidden fields that our action expects -->
 								<input type="hidden" name="bookId" value={book.bookId} />
 								<input type="hidden" name="listType" value={book._listType} />

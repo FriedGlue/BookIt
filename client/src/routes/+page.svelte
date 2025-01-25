@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import type { DisplayBook } from '$lib/types';
+	import { enhance } from '$app/forms';
 
 	// The 'data' prop comes from your load() function on the page.
 	export let data: PageData;
@@ -31,6 +32,7 @@
 		selectedBook = null;
 		newPageCount = '';
 	}
+
 </script>
 
 <!-- Outer container preserving your original layout classes -->
@@ -81,7 +83,6 @@
 									></div>
 								</div>
 
-								<!-- Progress percentage and button row -->
 								<div class="mt-2 flex items-center justify-between">
 									<span class="text-sm text-gray-700">
 										{Math.round(book.progress)}%
@@ -90,6 +91,7 @@
 										<button class="text-blue-500 hover:text-blue-700">Details</button>
 									</div>
 								</div>
+								<!-- Progress percentage and button row -->
 
 								<!-- Trigger modal to update progress -->
 								<button
@@ -139,21 +141,20 @@
                        rounded-lg bg-black/50 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
 							>
 								<!-- "Details" button (example SSR form or could be a simple link) -->
-								<form method="post" action="?/viewDetails" class="w-3/4">
-									<input type="hidden" name="bookId" value={book.bookId} />
+								<a href={`/books/${book.bookId}`} class="w-3/4">
 									<button
-										type="submit"
-										class="h-8 w-full rounded-full bg-white text-gray-800
+										type="button"
+										class="h-8 w-full text-center rounded-full bg-white text-gray-800
                            transition-all duration-200 hover:bg-blue-500 hover:text-white"
 									>
 										Details
 									</button>
-								</form>
+								</a>
 
 								<!-- "Start" reading form -->
-								<form method="post" action="?/startReading" class="w-3/4">
+								<form method="post" action="?/startReading" class="w-3/4" use:enhance>
 									<input type="hidden" name="bookId" value={book.bookId} />
-									<input type="hidden" name="listName" value="toBeRead" />
+									<input type="hidden" name="listName" value="currentlyReading" />
 									<button
 										type="submit"
 										class="h-8 w-full rounded-full bg-white text-gray-800
@@ -164,7 +165,7 @@
 								</form>
 
 								<!-- "Remove" from list form -->
-								<form method="post" action="?/removeFromList" class="w-3/4">
+								<form method="post" action="?/removeFromList" class="w-3/4" use:enhance>
 									<input type="hidden" name="bookId" value={book.bookId} />
 									<input type="hidden" name="listType" value="toBeRead" />
 									<button
@@ -220,16 +221,15 @@
                        rounded-lg bg-black/50 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
 							>
 								<!-- "Details" button (example SSR form or could be a simple link) -->
-								<form method="post" action="?/viewDetails" class="w-3/4">
-									<input type="hidden" name="bookId" value={book.bookId} />
+								<a href={`/books/${book.bookId}`} class="w-3/4">
 									<button
-										type="submit"
-										class="h-8 w-full rounded-full bg-white text-gray-800
+										type="button"
+										class="h-8 w-full text-center rounded-full bg-white text-gray-800
                            transition-all duration-200 hover:bg-blue-500 hover:text-white"
 									>
 										Details
 									</button>
-								</form>
+								</a>
 
 								<!-- "Start" reading form -->
 								<form method="post" action="?/startReading" class="w-3/4">
@@ -391,6 +391,8 @@
 							method="post"
 							action="?/updateProgress"
 							class="inline-flex w-full justify-center sm:ml-3 sm:w-auto"
+							use:enhance
+							on:submit|preventDefault={() => closeModal()}
 						>
 							<input type="hidden" name="bookId" value={selectedBook.bookId} />
 							<input type="hidden" name="currentPage" value={selectedBook.currentPage || 0} />
@@ -410,8 +412,10 @@
 						<!-- Form for 'finishReading' -->
 						<form
 							method="post"
-							action="?/finishReading"
+							action="?/finishBook"
 							class="mt-3 inline-flex w-full justify-center sm:ml-3 sm:mt-0 sm:w-auto"
+							use:enhance
+							on:submit|preventDefault={() => closeModal()}
 						>
 							<input type="hidden" name="bookId" value={selectedBook.bookId} />
 							<button
@@ -429,13 +433,13 @@
 							method="post"
 							action="?/removeFromCurrentlyReading"
 							class="mt-3 inline-flex w-full justify-center sm:ml-3 sm:mt-0 sm:w-auto"
+							use:enhance
+							on:submit|preventDefault={() => closeModal()}
 						>
-							<input type="hidden" name="bookId" value={selectedBook.bookId} />
+							<input type="hidden" name="bookId" value={selectedBook?.bookId} />
 							<button
 								type="submit"
-								class="inline-flex w-full justify-center rounded-md bg-red-600
-                       px-5 py-3 text-sm font-semibold text-white shadow-sm
-                       hover:bg-red-500 sm:w-auto"
+								class="inline-flex w-full justify-center rounded-md bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:w-auto"
 							>
 								Remove
 							</button>

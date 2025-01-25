@@ -20,14 +20,15 @@ func SearchBooks(request events.APIGatewayProxyRequest) events.APIGatewayProxyRe
 	// Grab query params, e.g. ?isbn=XXX or ?q=someTitle
 	isbn := request.QueryStringParameters["isbn"]
 	q := request.QueryStringParameters["q"]
+	bookId := request.QueryStringParameters["bookId"]
 
 	// If you want separate params for title, author, etc. you could parse them here:
 	// titleParam := request.QueryStringParameters["title"]
 	// authorParam := request.QueryStringParameters["author"]
 	// etc.
 
-	if isbn == "" && q == "" {
-		return shared.ErrorResponse(400, "Please provide at least one search parameter (?isbn= or ?q=).")
+	if isbn == "" && q == "" && bookId == "" {
+		return shared.ErrorResponse(400, "Please provide at least one search parameter (?isbn= or ?q= or ?bookId=).")
 	}
 
 	svc := shared.DynamoDBClient()
@@ -35,28 +36,30 @@ func SearchBooks(request events.APIGatewayProxyRequest) events.APIGatewayProxyRe
 	var books []BookData
 	var err error
 
-	// 1) If an ISBN is provided, do a GSI query for exact match:
-	if isbn != "" {
+	if bookId != "" {
+		books, err = searchByBookId(svc, bookId)
+		if err != nil {
+			log.Printf("Error searching by bookId: %v\n", err)
+			return shared.ErrorResponse(500, fmt.Sprintf("Error searching by bookId: %v", err))
+		}
+	} else if isbn != "" {
 		books, err = searchByISBN(svc, isbn)
 		if err != nil {
 			log.Printf("Error searching by ISBN: %v\n", err)
 			return shared.ErrorResponse(500, fmt.Sprintf("Error searching by ISBN: %v", err))
 		}
-	}
-
-	// 2) If a general query (q) is provided, do a partial match on 'titleLowercase' or do a scan:
-	if q != "" {
-		// For small scale, do a scan.
-		// Example: 'contains(titleLowercase, :qLower)'
-		books, err = searchByPartialTitle(svc, q)
-		if err != nil {
-			log.Printf("Error searching by partial title: %v\n", err)
-			return shared.ErrorResponse(500, fmt.Sprintf("Error searching by partial title: %v", err))
+	} else {
+		// 2) If a general query (q) is provided, do a partial match on 'titleLowercase' or do a scan:
+		if q != "" {
+			// For small scale, do a scan.
+			// Example: 'contains(titleLowercase, :qLower)'
+			books, err = searchByPartialTitle(svc, q)
+			if err != nil {
+				log.Printf("Error searching by partial title: %v\n", err)
+				return shared.ErrorResponse(500, fmt.Sprintf("Error searching by partial title: %v", err))
+			}
 		}
 	}
-
-	// If you want to combine results from both, you could.
-	// For now, assume we only do one or the other. Or we could union them if both params exist.
 
 	// Convert to JSON
 	responseBytes, _ := json.Marshal(books)
@@ -92,6 +95,28 @@ func searchByISBN(svc *dynamodb.DynamoDB, isbnValue string) ([]BookData, error) 
 	}
 
 	return books, nil
+}
+
+// Exact bookId lookup using primary key
+func searchByBookId(svc *dynamodb.DynamoDB, bookId string) ([]BookData, error) {
+	input := &dynamodb.GetItemInput{
+		TableName: aws.String(BOOKS_TABLE_NAME),
+		Key: map[string]*dynamodb.AttributeValue{
+			"bookId": {S: aws.String(bookId)},
+		},
+	}
+
+	result, err := svc.GetItem(input)
+	if err != nil {
+		return nil, err
+	}
+
+	var book BookData
+	if err := dynamodbattribute.UnmarshalMap(result.Item, &book); err != nil {
+		return nil, err
+	}
+
+	return []BookData{book}, nil
 }
 
 // Partial match on 'titleLowercase' with "contains(...)"

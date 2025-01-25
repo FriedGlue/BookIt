@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { AuthService } from '$lib/services/authService';
 	import { goto } from '$app/navigation';
+	import { enhance } from '$app/forms';
+	import { onMount } from 'svelte';
 
 	let searchQuery = '';
 	let searchResults: any[] = [];
@@ -23,7 +25,7 @@
 
 		try {
 			isSearching = true;
-			const res = await fetch(`/api/books/search?q=${encodeURIComponent(searchQuery)}`);
+			const res = await fetch(`/api/books/searchByTitle?q=${encodeURIComponent(searchQuery)}`);
 			if (!res.ok) {
 				console.error('Error searching books:', await res.text());
 				searchResults = [];
@@ -39,33 +41,6 @@
 		}
 	}
 
-	// ---- Move "addToList" to call your local route:
-	async function addToList(bookId: string) {
-		if (isAddingToList) return;
-		try {
-			isAddingToList = true;
-			const res = await fetch('/api/books/add', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ bookId, listType: 'toBeRead' })
-			});
-
-			if (!res.ok) {
-				console.error('Error adding book to list:', await res.text());
-				return;
-			}
-
-			showSearchResults = false;
-			searchQuery = '';
-		} catch (error) {
-			console.error('Error adding book to list:', error);
-		} finally {
-			isAddingToList = false;
-		}
-	}
-
 	async function handleLogout() {
 		authService.logout();
 		goto('/login');
@@ -77,6 +52,17 @@
 			showSearchResults = false;
 		}
 	}
+
+	// Function to fetch book details
+	async function fetchBookDetails(bookId: string) {
+		const res = await fetch(`/api/books/${bookId}`);
+		if (!res.ok) {
+			console.error('Error fetching book details:', await res.text());
+			return null;
+		}
+		return await res.json();
+	}
+
 </script>
 
 <nav class="flex flex-wrap items-center justify-between bg-blue-500 p-6">
@@ -101,23 +87,18 @@
 		{#if showSearchResults && searchResults.length > 0}
 			<div class="absolute z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-lg bg-white shadow-xl">
 				{#each searchResults as book (book.bookId)}
-					<button
-						type="button"
+					<a
+						href={`/books/${book.bookId}`}
 						class="flex w-full cursor-pointer items-center space-x-4 p-4 text-left hover:bg-gray-100"
-						on:click={() => addToList(book.bookId)}
-						disabled={isAddingToList}
-						on:keydown={(e) => {
-							if (e.key === 'Enter' || e.key === ' ') {
-								e.preventDefault();
-								e.currentTarget.click();
+						on:click={() => {
+							searchQuery = '';
+							showSearchResults = false;
+							if (window.location.pathname.includes('/books/')) {
+								location.reload();
 							}
 						}}
 					>
-						{#if isAddingToList}
-							<div class="flex h-16 w-12 items-center justify-center">
-								<div class="h-6 w-6 animate-spin rounded-full border-b-2 border-blue-500"></div>
-							</div>
-						{:else if book.thumbnail}
+						{#if book.thumbnail}
 							<img src={book.thumbnail} alt={book.title} class="h-16 w-12 object-cover" />
 						{/if}
 						<div>
@@ -126,7 +107,7 @@
 								{book.authors ? book.authors[0] : 'Unknown Author'}
 							</p>
 						</div>
-					</button>
+					</a>
 				{/each}
 			</div>
 		{/if}
