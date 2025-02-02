@@ -5,94 +5,75 @@
 
 	export let data: PageData;
 
-	// Assuming you have the correct type for customLists
-	type CustomListsType = Record<string, DisplayBook[]>; // Adjust if necessary
+	let selectedList = 'All';
+	let displayBooks: Book[] = [];
 
-	// Ensure data is typed correctly
-	const customLists: CustomListsType = data.customLists ?? {};
+	// Define a type for our book list entries
+	type BookWithMeta = Book & {
+		_listType: string;
+		progress: ReadingProgress;
+	};
 
-	let selectedList = 'All'; // "All" by default
-	let lists: string[] = []; // name of each list in the sidebar
-	let allBooks: Book[] = []; // combined "All" books
-	let displayBooks: Book[] = []; // the currently displayed books
+	// Define a type for our books by list structure
+	type BooksByList = {
+		[key: string]: BookWithMeta[];
+	};
 
-	// Build the lists and flatten everything into an "All" list:
-	lists = ['All', 'toBeRead', 'read'];
-	if (data.customLists) {
-		lists.push(...Object.keys(data.customLists));
+	// Create a list of all available list names
+	const lists = ['All', 'To Be Read', 'Read', ...Object.keys(data.customLists ?? {})];
+
+	// Helper function to create default progress
+	function createDefaultProgress(): ReadingProgress {
+		return {
+			lastPageRead: 0,
+			percentage: 0,
+			lastUpdated: new Date().toISOString()
+		};
 	}
 
-	allBooks = [
-		...(data.toBeReadList ?? []).map((b) => ({
-			...b,
+	// Create a normalized map of all books by list type
+	const booksByList: BooksByList = {
+		'To Be Read': (data.toBeReadList ?? []).map(book => ({
+			...book,
 			_listType: 'toBeRead',
-			progress: {
-				lastPageRead: 0,
-				percentage: 0,
-				lastUpdated: new Date().toISOString()
-			} as ReadingProgress
+			progress: createDefaultProgress()
 		})),
-		...(data.readList ?? []).map((b) => ({
-			...b,
+		'Read': (data.readList ?? []).map(book => ({
+			...book,
 			_listType: 'read',
-			progress: {
-				lastPageRead: 0,
-				percentage: 0,
-				lastUpdated: new Date().toISOString()
-			} as ReadingProgress
+			progress: createDefaultProgress()
 		})),
-		...Object.entries(customLists).flatMap(
-			(
-				[listName, books] // Use Object.entries to ensure correct typing
-			) =>
-				books.map((b) => ({
-					...b,
+		...Object.fromEntries(
+			Object.entries(data.customLists ?? {}).map(([listName, books]) => [
+				listName,
+				books.map(book => ({
+					...book,
 					_listType: listName,
-					progress: {
-						lastPageRead: 0,
-						percentage: 0,
-						lastUpdated: new Date().toISOString()
-					} as ReadingProgress
+					progress: createDefaultProgress()
 				}))
+			])
 		)
-	];
+	};
 
-	// Whenever selectedList changes, we update displayBooks
-	$: updateDisplayBooks();
-
-	function updateDisplayBooks() {
-		switch (selectedList) {
-			case 'All':
-				displayBooks = allBooks;
-				break;
-			case 'toBeRead':
-				displayBooks = (data.toBeReadList ?? []).map((b) => ({ ...b, _listType: 'toBeRead' }));
-				break;
-			case 'read':
-				displayBooks = (data.readList ?? []).map((b) => ({ ...b, _listType: 'read' }));
-				break;
-			default:
-				// custom list
-				const customList = data.customLists?.[selectedList] ?? [];
-				displayBooks = customList.map((b) => ({
-					...b,
-					_listType: selectedList,
-					progress: {
-						lastPageRead: 0,
-						percentage: 0,
-						lastUpdated: new Date().toISOString()
-					} as ReadingProgress
-				}));
+	// Update displayed books whenever selected list changes
+	$: {
+		if (selectedList === 'All') {
+			displayBooks = Object.values(booksByList).flat();
+		} else {
+			const listKey = selectedList === 'To Be Read' ? 'To Be Read' : 
+										selectedList === 'Read' ? 'Read' : selectedList;
+			displayBooks = booksByList[listKey] ?? [];
 		}
 	}
 
-	function selectList(listName: string) {
-		selectedList = listName;
-	}
-
-	// Add this new function to handle book removal
 	function removeBook(bookId: string) {
 		displayBooks = displayBooks.filter(book => book.bookId !== bookId);
+		// Also remove from the source list to keep data in sync
+		const listKey = selectedList === 'To Be Read' ? 'To Be Read' : 
+									 selectedList === 'Read' ? 'Read' : selectedList;
+		if (listKey !== 'All') {
+			booksByList[listKey] = booksByList[listKey].filter(book => book.bookId !== bookId);
+		}
 	}
 </script>
 
@@ -105,10 +86,10 @@
 				<li>
 					<button
 						class="w-full rounded px-2 py-1 text-left hover:bg-gray-700"
-						class:selected={selectedList === listName}
-						on:click={() => selectList(listName)}
+						class:bg-gray-700={selectedList === listName}
+						on:click={() => selectedList = listName}
 					>
-						{listName === 'toBeRead' ? 'To Be Read' : listName === 'read' ? 'Read' : listName}
+						{listName}
 					</button>
 				</li>
 			{/each}
@@ -118,11 +99,10 @@
 	<!-- Main Content -->
 	<div class="flex-1 bg-gray-100 p-6">
 		<h1 class="mb-6 text-2xl font-bold">
-			{selectedList === 'toBeRead' ? 'To Be Read' : selectedList === 'read' ? 'Read' : selectedList}
+			{selectedList}
 			<span class="ml-2 text-sm text-gray-500">({displayBooks.length})</span>
 		</h1>
 
-		<!-- Vertical table of books -->
 		{#if displayBooks.length === 0}
 			<p class="text-gray-600">No books in this list.</p>
 		{:else}
@@ -134,7 +114,7 @@
 							{#if book.thumbnail}
 								<img
 									src={book.thumbnail}
-									alt="Thumbnail"
+									alt="Book cover for {book.title}"
 									class="h-full w-full rounded-md object-cover"
 								/>
 							{:else}
@@ -153,12 +133,15 @@
 								</p>
 							</div>
 
-							<!-- Remove form (calls removeFromList action) -->
-							<form method="post" action="?/removeFromList" class="mt-2" use:enhance on:submit|preventDefault={() => removeBook(book.bookId)}>
-								<!-- Hidden fields that our action expects -->
+							<form 
+								method="post" 
+								action="?/removeFromList" 
+								class="mt-2" 
+								use:enhance 
+								on:submit|preventDefault={() => removeBook(book.bookId)}
+							>
 								<input type="hidden" name="bookId" value={book.bookId} />
 								<input type="hidden" name="listType" value={book._listType} />
-
 								<button
 									type="submit"
 									class="h-10 w-36 rounded bg-red-500 px-3 py-1 text-lg text-white hover:bg-red-600"
