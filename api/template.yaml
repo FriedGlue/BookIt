@@ -19,7 +19,7 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       Name: BookitApi
-      StageName: dev
+      StageName: dev 
       Auth:
         DefaultAuthorizer: CognitoAuthorizer
         Authorizers:

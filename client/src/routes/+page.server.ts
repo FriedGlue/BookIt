@@ -1,55 +1,33 @@
 // +page.server.ts
+import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import type { PageServerLoad, Actions } from './$types';
 import { BookService } from '$lib/services/bookService'; // <--- use your correct import path
-import type { Profile, CurrentlyReadingItem } from '$lib/types';
+import type { Profile } from '$lib/types';
 
-export const load: PageServerLoad = async ({ fetch }) => {
-	let profile: Profile | null = null;
+export const load: PageServerLoad = async ({ fetch, cookies }) => {
+  let profile: Profile | null = null;
 
-	try {
-		const res = await fetch(`/api/profile`);
+  const token = cookies.get('idToken');
+  if (!token) {
+    return { profile: null };
+  }
 
-		if (!res.ok) {
-			console.error('Error searching books:', await res.text());
-			return {
-				books: [],
-				toBeReadList: [],
-				readList: [],
-				customLists: {}
-			};
-		}
+  console.log('Fetching reading log...');
+  const response = await fetch(`${PUBLIC_API_BASE_URL}/profile`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
 
-		profile = await res.json();
+  if (!response.ok) {
+    console.error('Failed to load profile for reading log', response.statusText);
+    return { profile: null };
+  }
 
-	} catch (error) {
-		console.error('Error searching books:', error);
-	}
+  profile = await response.json();
 
-	if (!profile) {
-		console.log('No profile found');
-		return {
-			books: [],
-			toBeReadList: [],
-			readList: [],
-			customLists: {}
-		};
-	}
-
-	return {
-		books: (profile.currentlyReading || []).map((item: CurrentlyReadingItem) => ({
-			bookId: item.Book.bookId,
-			title: item.Book.title ?? 'Untitled',
-			author: item.Book.authors ? item.Book.authors[0] : 'Unknown Author',
-			thumbnail: item.Book.thumbnail ?? '',
-			progress: item.Book.progress?.percentage ?? 0,
-			totalPages: item.Book.totalPages ?? 1,
-			currentPage: item.Book.progress?.lastPageRead ?? 0,
-			lastUpdated: item.Book.progress?.lastUpdated ?? new Date().toISOString()
-		})),
-		toBeReadList: profile.lists?.toBeRead || [],
-		readList: profile.lists?.read || [],
-		customLists: profile.lists?.customLists || {}
-	};
+  return { profile };
 };
 
 export const actions: Actions = {
