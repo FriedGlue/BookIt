@@ -207,6 +207,14 @@ Resources:
             Method: ANY
             RestApiId: !Ref BookitApi  
 
+        # ReadingLog routes
+        ReadingLogEventTest:
+          Type: Api
+          Properties:
+            Path: /reading-log
+            Method: ANY
+            RestApiId: !Ref BookitApi  
+
 
   #####################################
   # Lambda Function: "Authentication"  
@@ -268,6 +276,8 @@ Resources:
             Path: /auth/refresh
             Method: ANY 
             RestApiId: !Ref BookitApi
+            Auth:
+              Authorizer: NONE   
 
 Outputs:
   ApiUrl:

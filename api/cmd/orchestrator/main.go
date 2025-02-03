@@ -110,6 +110,22 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 			}
 		}
 
+	case strings.HasPrefix(path, "/reading-log"):
+		// Handle /reading-log routes
+		switch method {
+		case "GET":
+			response = handlers.GetReadingLog(request)
+		case "DELETE":
+			response = handlers.DeleteReadingLogItem(request)
+		case "PUT":
+			response = handlers.UpdateReadingLogItem(request)
+		default:
+			response = events.APIGatewayProxyResponse{
+				StatusCode: 405,
+				Body:       "Method Not Allowed for /reading-log",
+			}
+		}
+
 	default:
 		response = events.APIGatewayProxyResponse{
 			StatusCode: 404,

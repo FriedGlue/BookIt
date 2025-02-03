@@ -174,6 +174,18 @@ func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGate
 
 	profile.CurrentlyReading = append(profile.CurrentlyReading, currentlyReadingItem)
 
+	// Update the reading log with the new progress
+	logEntry := models.ReadingLogItem{
+		Id:            fmt.Sprintf("%d", rand.Int()),
+		Date:          time.Now().Format(time.RFC3339),
+		BookID:        book.BookID,
+		Title:         book.Title,
+		BookThumbnail: book.Thumbnail,
+		PagesRead:     0,
+		Notes:         "Book Started",
+	}
+	profile.ReadingLog = append(profile.ReadingLog, logEntry)
+
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
 		log.Printf("Error marshalling updated profile: %v\n", err)
@@ -203,6 +215,7 @@ type updateCurrentlyReadingRequest struct {
 	CurrentPage int    `json:"currentPage"`
 	BookID      string `json:"bookId,omitempty"`
 	Title       string `json:"title,omitempty"`
+	Notes       string `json:"notes,omitempty"`
 }
 
 // UpdateCurrentlyReading updates a book in the "currently reading" list in the Profile table
@@ -297,6 +310,18 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 		}
 	}
 
+	// Update the reading log with the new progress
+	logEntry := models.ReadingLogItem{
+		Id:            fmt.Sprintf("%d", rand.Int()),
+		Date:          time.Now().Format(time.RFC3339),
+		BookID:        storedBook.Book.BookID,
+		Title:         storedBook.Book.Title,
+		BookThumbnail: storedBook.Book.Thumbnail,
+		PagesRead:     updateReq.CurrentPage,
+		Notes:         updateReq.Notes,
+	}
+	profile.ReadingLog = append(profile.ReadingLog, logEntry)
+
 	// Marshal the updated profile back to DynamoDB format
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
@@ -362,10 +387,12 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
+	var bookDetails models.Book
 	index := -1
 	for i, item := range profile.CurrentlyReading {
 		if item.Book.BookID == bookId || item.Book.ISBN == isbn {
 			index = i
+			bookDetails = item.Book
 			break
 		}
 	}
@@ -376,6 +403,17 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 	}
 
 	profile.CurrentlyReading = append(profile.CurrentlyReading[:index], profile.CurrentlyReading[index+1:]...)
+	// Update the reading log with the new progress
+	logEntry := models.ReadingLogItem{
+		Id:            fmt.Sprintf("%d", rand.Int()),
+		Date:          time.Now().Format(time.RFC3339),
+		BookID:        bookDetails.BookID,
+		Title:         bookDetails.Title,
+		BookThumbnail: bookDetails.Thumbnail,
+		PagesRead:     bookDetails.Progress.LastPageRead,
+		Notes:         "Book Removed",
+	}
+	profile.ReadingLog = append(profile.ReadingLog, logEntry)
 
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
@@ -532,6 +570,18 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 	// Add to currently reading list
 	profile.CurrentlyReading = append(profile.CurrentlyReading, currentlyReadingItem)
 
+	// Update the reading log with the new progress
+	logEntry := models.ReadingLogItem{
+		Id:            fmt.Sprintf("%d", rand.Int()),
+		Date:          time.Now().Format(time.RFC3339),
+		BookID:        bookDetails.BookID,
+		Title:         bookDetails.Title,
+		BookThumbnail: bookDetails.CoverImageURL,
+		PagesRead:     0,
+		Notes:         "Book Started",
+	}
+	profile.ReadingLog = append(profile.ReadingLog, logEntry)
+
 	// Update the profile in DynamoDB
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
@@ -637,6 +687,18 @@ func FinishReading(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 		profile.Lists.Read = []models.ReadItem{}
 	}
 	profile.Lists.Read = append(profile.Lists.Read, readItem)
+
+	// Update the reading log with the new progress
+	logEntry := models.ReadingLogItem{
+		Id:            fmt.Sprintf("%d", rand.Int()),
+		Date:          time.Now().Format(time.RFC3339),
+		BookID:        readItem.BookID,
+		Title:         readItem.Title,
+		BookThumbnail: readItem.Thumbnail,
+		PagesRead:     bookToMove.Book.TotalPages,
+		Notes:         "Book Finished",
+	}
+	profile.ReadingLog = append(profile.ReadingLog, logEntry)
 
 	// Update the profile in DynamoDB
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)

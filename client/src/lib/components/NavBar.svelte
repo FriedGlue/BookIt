@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { AuthService } from '$lib/services/authService';
 	import { goto } from '$app/navigation';
-	import { enhance } from '$app/forms';
 	import { onMount } from 'svelte';
 
 	let searchQuery = '';
@@ -11,7 +10,6 @@
 	let isAddingToList = false;
 	let toBeReadList: any[] = [];
 
-	const authService = new AuthService();
 
 	export let authenticated: boolean;
 
@@ -42,7 +40,7 @@
 	}
 
 	async function handleLogout() {
-		authService.logout();
+		// authService.logout();
 		goto('/login');
 	}
 
@@ -73,6 +71,7 @@
 		<div class="flex items-center space-x-4">
 			<a href="/" class="block text-teal-200 hover:text-white lg:inline-block"> Home </a>
 			<a href="/lists" class="block text-teal-200 hover:text-white lg:inline-block"> Lists </a>
+			<a href="/reading-log" class="block text-teal-200 hover:text-white lg:inline-block"> Log </a>
 		</div>
 	</div>
 

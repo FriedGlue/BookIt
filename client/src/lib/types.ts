@@ -63,3 +63,18 @@ export interface ReadItem {
 	title?: string;
 	authors?: string[];
 }
+
+export interface ReadingLogItem {
+	_id:      string,
+	date:          string, 
+	bookId:        string,
+	bookThumbnail: string,
+	pagesRead:     number,
+	notes:         string,
+}
+
+export interface DecodedToken {
+    exp: number;
+    sub: string;
+    email: string;
+}

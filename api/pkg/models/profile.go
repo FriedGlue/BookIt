@@ -71,8 +71,10 @@ type CustomListItem struct {
 }
 
 type ReadingLogItem struct {
-	Date          string `json:"date"`
+	Id            string `json:"_id"`
 	BookID        string `json:"bookId"`
+	Title         string `json:"title"`
+	Date          string `json:"date"`
 	BookThumbnail string `json:"bookThumbnail,omitempty"`
 	PagesRead     int    `json:"pagesRead,omitempty"`
 	Notes         string `json:"notes,omitempty"`
