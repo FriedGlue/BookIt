@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { AuthService } from '$lib/services/authService';
-	import { goto } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { isAuthenticated } from '$lib/stores/authStore';
 
 	let searchQuery = '';
 	let searchResults: any[] = [];
@@ -10,8 +11,12 @@
 	let isAddingToList = false;
 	let toBeReadList: any[] = [];
 
+	const authService = new AuthService;
 
-	export let authenticated: boolean;
+	onMount(async () => {
+		await authService.isAuthenticated();
+
+	})
 
 	// ---- Move "searchBooks" to call your local route:
 	async function handleSearch() {
@@ -40,7 +45,8 @@
 	}
 
 	async function handleLogout() {
-		// authService.logout();
+		authService.logout();
+		invalidateAll();
 		goto('/login');
 	}
 
@@ -113,7 +119,7 @@
 	</div>
 
 	<div class="flex items-center space-x-4">
-		{#if authenticated}
+		{#if $isAuthenticated}
 			<button
 				on:click={handleLogout}
 				class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { AuthService } from '$lib/services/authService';
-	import { goto } from '$app/navigation';
+	import { goto, invalidate, invalidateAll } from '$app/navigation';
 
 	const authService = new AuthService();
 	let username = '';

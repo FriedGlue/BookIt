@@ -1,4 +1,5 @@
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
+import { isAuthenticated } from '$lib/stores/authStore';
 
 export class AuthService {
 	async login(username: string, password: string): Promise<void> {
@@ -31,6 +32,8 @@ export class AuthService {
 			}),
 			credentials: 'include'
 		});
+
+		isAuthenticated.set(true);
 	}
 
 	async refreshToken(): Promise<void> {
@@ -55,11 +58,28 @@ export class AuthService {
 		}).catch(console.error);
 
 		// Only call signout endpoint if not in local development
-		if (!PUBLIC_API_BASE_URL.includes('localhost')) {
+		if (!PUBLIC_API_BASE_URL.includes('amazonaws')) {
 			fetch(`${PUBLIC_API_BASE_URL}/auth/signout`, {
 				method: 'POST',
 				credentials: 'include'
 			}).catch(console.error);
 		}
+
+		isAuthenticated.set(false);
+	}
+
+	async isAuthenticated(): Promise<boolean> {
+		const response = await fetch(`/api/isAuthenticated`, {
+			method: 'GET',
+			credentials: 'include'
+		});
+
+		if (!response.ok) {
+			return false;
+		}
+
+		const data = await response.json();
+
+		return data.authenticated;
 	}
 }
