@@ -113,8 +113,7 @@ export const actions: Actions = {
 			await bookService.removeFromList(bookId, listType);
 			return { success: true };
 		} catch (err) {
-			console.error('Failed to remove from list:', err);
-			return { error: 'Failed to remove from list' };
+			throw Error('Failed to remove from list', { cause: err });
 		}
 	},
 
@@ -131,8 +130,7 @@ export const actions: Actions = {
 			await bookService.removeFromCurrentlyReading(bookId);
 			return { success: true };
 		} catch (err) {
-			console.error('Failed to remove from currently reading:', err);
-			return { error: 'Failed to remove from currently reading' };
+			throw Error('Failed to remove from currently reading', { cause: err });
 		}
 	},
 
@@ -140,7 +138,7 @@ export const actions: Actions = {
 		const response = await fetch('/api/currentlyReading/finishReading', {
 		});
 		if (!response.ok) {
-			throw new Error('Failed to finish reading');
+			throw new Error('Failed to finish reading', { cause: response.statusText });
 		}
 		return await response.json();
 	},
