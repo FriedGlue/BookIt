@@ -7,8 +7,8 @@
 	export let data: PageData;
 
 	let modalVisible = false;
+
 	// The selectedBook here is the raw Book object from the API.
-	// (Its structure is as defined in your API: note that progress is nested.)
 	let selectedBook: Book | null = null;
 	let newPageCount: number | '' = '';
 
