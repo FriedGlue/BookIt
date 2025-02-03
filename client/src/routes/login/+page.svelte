@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { AuthService } from '$lib/services/authService';
-	import { goto, invalidate, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
+	import { isAuthenticated } from '$lib/stores/authStore';
 
 	const authService = new AuthService();
 	let username = '';
@@ -10,7 +11,6 @@
 	async function handleLogin() {
 		try {
 			await authService.login(username, password);
-			goto('/');
 		} catch (err) {
 			console.error(err);
 			error = 'Invalid username or password';

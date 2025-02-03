@@ -80,12 +80,12 @@
 <div class="flex min-h-screen">
 	<!-- Sidebar -->
 	<div class="w-64 bg-gray-800 p-4 text-white">
-		<h2 class="mb-4 text-lg font-bold">Your Lists</h2>
+		<h2 class="mb-4 text-3xl font-bold">Your Lists</h2>
 		<ul class="space-y-2">
 			{#each lists as listName}
 				<li>
 					<button
-						class="w-full rounded px-2 py-1 text-left hover:bg-gray-700"
+						class="w-full rounded px-2 py-1 text-lg text-left hover:bg-gray-700"
 						class:bg-gray-700={selectedList === listName}
 						on:click={() => selectedList = listName}
 					>
@@ -119,7 +119,7 @@
 								/>
 							{:else}
 								<div class="flex h-full w-full items-center justify-center text-gray-500">
-									No Cover
+									Cover Not Found
 								</div>
 							{/if}
 						</div>

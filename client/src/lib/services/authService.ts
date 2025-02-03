@@ -1,5 +1,6 @@
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import { isAuthenticated } from '$lib/stores/authStore';
+import { goto } from '$app/navigation';
 
 export class AuthService {
 	async login(username: string, password: string): Promise<void> {
@@ -21,7 +22,7 @@ export class AuthService {
 		console.log(data);
 
 		// Set cookies via a server endpoint
-		await fetch('/api/set-auth-cookies', {
+		const setCookiesResponse = await fetch('/api/set-auth-cookies', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
@@ -33,6 +34,12 @@ export class AuthService {
 			credentials: 'include'
 		});
 
+		if (!setCookiesResponse.ok)
+		{
+			throw new Error('Failed to set authentication cookies')
+		}
+
+		await goto('/');
 		isAuthenticated.set(true);
 	}
 
