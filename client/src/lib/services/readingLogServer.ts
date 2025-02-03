@@ -12,7 +12,6 @@ export class ReadingLogService{
 	private getOptions(method: string, body?: unknown) {
 		return {
 			method,
-			credentials: 'include' as RequestCredentials,
 			headers: {
 				'Content-Type': 'application/json',
 				Authorization: `Bearer ${this.token}` // Attach your token as a Bearer token
