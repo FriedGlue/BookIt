@@ -1,30 +1,33 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
-Description: >
-  AWS SAM template to create a Books DynamoDB table, a Go Lambda function,
-  and an API Gateway endpoint for managing books,
-  plus Cognito-based authentication and "UserLists" functionality.
+Description: |
+  AWS SAM template to create a Books DynamoDB table, a Go Lambda function, and an API Gateway endpoint for managing books, plus Cognito-based authentication and "UserLists" functionality.
+
+Parameters:
+  StageName:
+    Type: String
+    Default: dev
 
 Globals:
   Function:
-    Timeout: 10         
-    MemorySize: 128     
+    Timeout: 10
+    MemorySize: 128
 
 Resources:
   #####################################
-  # API Gateway: "BookitApi"  
+  # API Gateway: "BookItApi"  
   #####################################
-  BookitApi:
+  BookItApi:
     Type: AWS::Serverless::Api
     Properties:
-      Name: BookitApi
-      StageName: dev 
+      Name: !Sub BookItApi-${StageName}
+      StageName: !Ref StageName
       Auth:
-        DefaultAuthorizer: CognitoAuthorizer
+        DefaultAuthorizer: BookItCognitoAuthorizer
         Authorizers:
-          CognitoAuthorizer:
-            UserPoolArn: !GetAtt MyUserPool.Arn
+          BookItCognitoAuthorizer:
+            UserPoolArn: !GetAtt BookItUserPool.Arn
             Identity:
               Header: Authorization
 
@@ -33,17 +36,18 @@ Resources:
   #####################################
 
   # Cognito User Pool
-  MyUserPool:
+  BookItUserPool:
     Type: AWS::Cognito::UserPool
     Properties:
-      UserPoolName: MyUserPool
-      UsernameAttributes: ["email"]
+      UserPoolName: !Sub BookItUserPool-${StageName}
+      UsernameAttributes:
+        - email
 
-  MyUserPoolClient:
+  BookItUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
     Properties:
-      UserPoolId: !Ref MyUserPool
-      ClientName: MyUserPoolClient
+      UserPoolId: !Ref BookItUserPool
+      ClientName: !Sub BookItUserPoolClient-${StageName}
       GenerateSecret: false
       ExplicitAuthFlows:
         - ALLOW_USER_SRP_AUTH
@@ -56,7 +60,7 @@ Resources:
   BooksTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: BookDataTable
+      TableName: !Sub BookDataTable-${StageName}
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: bookId
@@ -82,14 +86,13 @@ Resources:
           Projection:
             ProjectionType: ALL
 
-
   #####################################
   # DynamoDB Table: "Profiles"
   #####################################
   ProfilesTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: Profiles
+      TableName: !Sub ProfilesTable-${StageName}
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: _id
@@ -99,17 +102,18 @@ Resources:
           KeyType: HASH
 
   #####################################
-  # Lambda Function: "MainOrchestrator"  
+  # Lambda Function: "Orchestrator"  
   #####################################
   OrchestratorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: MainOrchestrator 
+      FunctionName: !Sub Orchestrator-${StageName}
       Runtime: provided.al2
       Handler: bootstrap
       CodeUri: cmd/orchestrator/bootstrap
       PackageType: Zip
-      Architectures: [arm64]
+      Architectures:
+        - arm64
       Environment:
         Variables:
           PROFILES_TABLE_NAME: !Ref ProfilesTable
@@ -127,9 +131,9 @@ Resources:
               - dynamodb:UpdateItem
               - dynamodb:DeleteItem
               - dynamodb:Query
-            Resource: 
+            Resource:
               - !GetAtt BooksTable.Arn
-              - !Sub "${BooksTable.Arn}/index/*"
+              - !Sub ${BooksTable.Arn}/index/*
 
         - Statement:
             Effect: Allow
@@ -146,24 +150,24 @@ Resources:
       Events:
 
         # Books routes
-        BookitApiEvent:
+        BookItApiEvent:
           Type: Api
           Properties:
-            RestApiId: !Ref BookitApi
+            RestApiId: !Ref BookItApi
             Path: /books
             Method: ANY
 
-        BookitApiEventWithBookId:
+        BookItApiEventWithBookId:
           Type: Api
           Properties:
-            RestApiId: !Ref BookitApi
+            RestApiId: !Ref BookItApi
             Path: /books/{bookId}
             Method: ANY
 
-        BookitApiEventWithSearch:
+        BookItApiEventWithSearch:
           Type: Api
           Properties:
-            RestApiId: !Ref BookitApi
+            RestApiId: !Ref BookItApi
             Path: /books/search
             Method: ANY
 
@@ -173,7 +177,7 @@ Resources:
           Properties:
             Path: /profile
             Method: ANY
-            RestApiId: !Ref BookitApi  
+            RestApiId: !Ref BookItApi
 
         # CurrentlyReading routes
         AnyCurrentlyReadingEventTest:
@@ -181,7 +185,7 @@ Resources:
           Properties:
             Path: /currently-reading
             Method: ANY
-            RestApiId: !Ref BookitApi  
+            RestApiId: !Ref BookItApi
 
         # CurrentlyReading routes
         CurrentlyReadingStartReadingEventTest:
@@ -189,7 +193,7 @@ Resources:
           Properties:
             Path: /currently-reading/start-reading
             Method: ANY
-            RestApiId: !Ref BookitApi  
+            RestApiId: !Ref BookItApi
 
         # CurrentlyReading routes
         CurrentlyReadingFinishReadingEventTest:
@@ -197,7 +201,7 @@ Resources:
           Properties:
             Path: /currently-reading/finish-reading
             Method: ANY
-            RestApiId: !Ref BookitApi  
+            RestApiId: !Ref BookItApi
 
         # List routes
         AnyListEventTest:
@@ -205,7 +209,7 @@ Resources:
           Properties:
             Path: /list
             Method: ANY
-            RestApiId: !Ref BookitApi  
+            RestApiId: !Ref BookItApi
 
         # ReadingLog routes
         ReadingLogEventTest:
@@ -213,25 +217,25 @@ Resources:
           Properties:
             Path: /reading-log
             Method: ANY
-            RestApiId: !Ref BookitApi  
-
+            RestApiId: !Ref BookItApi
 
   #####################################
   # Lambda Function: "Authentication"  
   #####################################
-  AuthenticationFunction:
+  AuthFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: Authentication 
+      FunctionName: !Sub Auth-${StageName}
       Runtime: provided.al2
       Handler: bootstrap
       CodeUri: cmd/auth/bootstrap
       PackageType: Zip
-      Architectures: [arm64]
+      Architectures:
+        - arm64
       Environment:
         Variables:
-          USER_POOL_ID: !Ref MyUserPool
-          USER_POOL_CLIENT_ID: !Ref MyUserPoolClient
+          USER_POOL_ID: !Ref BookItUserPool
+          USER_POOL_CLIENT_ID: !Ref BookItUserPoolClient
 
       # For these auth endpoints, override the default authorizer to "NONE"
       Events:
@@ -240,66 +244,66 @@ Resources:
           Type: Api
           Properties:
             Path: /auth/signup
-            Method: ANY 
-            RestApiId: !Ref BookitApi
+            Method: ANY
+            RestApiId: !Ref BookItApi
             Auth:
-              Authorizer: NONE   
+              Authorizer: NONE
 
         ConfirmRoute:
           Type: Api
           Properties:
             Path: /auth/confirm
-            Method: ANY 
-            RestApiId: !Ref BookitApi
+            Method: ANY
+            RestApiId: !Ref BookItApi
             Auth:
-              Authorizer: NONE   
+              Authorizer: NONE
 
         SignInRoute:
           Type: Api
           Properties:
             Path: /auth/signin
-            Method: ANY 
-            RestApiId: !Ref BookitApi
+            Method: ANY
+            RestApiId: !Ref BookItApi
             Auth:
-              Authorizer: NONE   
+              Authorizer: NONE
 
         SignOutRoute:
           Type: Api
           Properties:
             Path: /auth/signout
-            Method: ANY 
-            RestApiId: !Ref BookitApi
+            Method: ANY
+            RestApiId: !Ref BookItApi
 
         RefreshRoute:
           Type: Api
           Properties:
             Path: /auth/refresh
-            Method: ANY 
-            RestApiId: !Ref BookitApi
+            Method: ANY
+            RestApiId: !Ref BookItApi
             Auth:
-              Authorizer: NONE   
+              Authorizer: NONE
 
 Outputs:
   ApiUrl:
-    Description: "API Gateway endpoint URL"
-    Value: !Sub "https://${BookitApi}.execute-api.${AWS::Region}.amazonaws.com/dev/books"
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${BookItApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/books
 
   BooksTableName:
-    Description: "Name of the DynamoDB Books table"
-    Value: !Ref BooksTable
-    
-  ProfilesTableName:
-    Description: "Name of the DynamoDB Profiles table"
+    Description: Name of the DynamoDB Books table
     Value: !Ref BooksTable
 
+  ProfilesTableName:
+    Description: Name of the DynamoDB Profiles table
+    Value: !Ref ProfilesTable
+
   OrchestratorFunctionName:
-    Description: "Name of the Books Lambda function"
+    Description: Name of the Books Lambda function
     Value: !Ref OrchestratorFunction
 
   UserPoolID:
-    Description: "Cognito User Pool ID"
-    Value: !Ref MyUserPool
+    Description: Cognito User Pool ID
+    Value: !Ref BookItUserPool
 
   UserPoolClientID:
-    Description: "Cognito User Pool Client ID"
-    Value: !Ref MyUserPoolClient
+    Description: Cognito User Pool Client ID
+    Value: !Ref BookItUserPoolClient

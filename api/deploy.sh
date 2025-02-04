@@ -1,12 +1,26 @@
 #!/bin/bash
 
+# Set default stage if not provided as an argument
+STAGE=${1:-dev}
+
+# Additional check for production stage
+if [ "$STAGE" == "prod" ]; then
+    echo "🚨 PRODUCTION DEPLOYMENT WARNING 🚨"
+    read -p "Have you reviewed and updated CORS headers? (yes/no): " cors_confirmation
+
+    if [ "$cors_confirmation" != "yes" ]; then
+        echo "Deployment aborted. Please update CORS headers before proceeding."
+        exit 1
+    fi
+fi
+
+FULL_STACK_NAME="BookIt-${STAGE}"
+
 # The GOOS and GOARCH are set for AWS Lambda's Linux environment.
-# Adjust if your target environment is different (e.g., for ARM64 use GOARCH=arm64)
 GOOS="linux"
 GOARCH="arm64"
 
 # Array of source directories where your main.go files are located.
-# Add the path to each of your Go application's entry points.
 SRC_DIRS=()
 for dir in ./cmd/*; do
     if [ -d "$dir" ]; then
@@ -20,7 +34,6 @@ for SRC_DIR in "${SRC_DIRS[@]}"; do
     OUTPUT_NAME="bootstrap"
 
     # The output directory where the compiled binary will be placed.
-    # This is usually the same as the SRC_DIR for Lambda deployments.
     OUT_DIR="$SRC_DIR"
 
     # Extract the last directory name for creating a unique ZIP file name
@@ -30,7 +43,7 @@ for SRC_DIR in "${SRC_DIRS[@]}"; do
     cd "$SRC_DIR" || exit
 
     # Compile the Go application
-    echo "Compiling the Go application in $SRC_DIR..."
+    echo "Compiling the Go application in $SRC_DIR for stage: $STAGE..."
     GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o bootstrap -tags lambda.norpc main.go
 
     # Ensure the binary is executable
@@ -40,6 +53,5 @@ for SRC_DIR in "${SRC_DIRS[@]}"; do
     cd ../..
 done
 
-# Deploy using AWS SAM
-echo "Deploying all functions..."
-sam deploy
+# Deploy using AWS SAM with the stage parameter
+sam deploy --stack-name="$FULL_STACK_NAME" --parameter-overrides StageName="$STAGE"
