@@ -3,6 +3,8 @@
 	import type { Book, ReadingProgress, DisplayBook } from '$lib/types';
 	import { enhance } from '$app/forms';
 	import Sidebar from '$lib/components/Sidebar.svelte';
+	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
 
 	export let data: PageData;
 
@@ -76,6 +78,13 @@
 			booksByList[listKey] = booksByList[listKey].filter(book => book.bookId !== bookId);
 		}
 	}
+
+	onMount(() => {
+		const listParam = new URL(window.location.href).searchParams.get('list');
+		if (listParam) {
+			selectedList = listParam;
+		}
+	});
 </script>
 
 <div class="flex min-h-screen">
@@ -83,7 +92,10 @@
 		title="Your Lists"
 		items={lists}
 		selectedItem={selectedList}
-		onSelect={(item) => selectedList = item}
+		onSelect={(item) => {
+			selectedList = item;
+			history.replaceState(null, '', `/lists?list=${item}`);
+		}}
 	/>
 
 	<!-- Main Content -->

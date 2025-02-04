@@ -108,7 +108,7 @@
 					<h1 class="text-4xl font-bold text-gray-600 md:text-5xl lg:text-4xl">
 						To Be Read ({data.profile.lists.toBeRead.length})
 					</h1>
-					<button class="mt-2 text-lg font-semibold text-blue-500">View All</button>
+					<a href="/lists?list=To Be Read" class="mt-2 text-lg font-semibold text-blue-500 hover:text-blue-700">View All</a>
 				</div>
 
 				<!-- Grid Container -->
@@ -184,7 +184,7 @@
 					<h1 class="text-4xl font-bold text-gray-600 md:text-5xl lg:text-4xl">
 						Read ({data.profile.lists.read.length})
 					</h1>
-					<button class="mt-2 text-lg font-semibold text-blue-500">View All</button>
+					<a href="/lists?list=Read" class="mt-2 text-lg font-semibold text-blue-500 hover:text-blue-700">View All</a>
 				</div>
 
 				<!-- Grid Container -->
@@ -260,7 +260,7 @@
 						<h1 class="text-4xl font-bold text-gray-600 md:text-5xl lg:text-4xl">
 							{listName} ({books.length})
 						</h1>
-						<button class="mt-2 text-lg font-semibold text-blue-500">View All</button>
+						<a href="/lists?list={listName}" class="mt-2 text-lg font-semibold text-blue-500 hover:text-blue-700">View All</a>
 					</div>
 
 					<!-- Grid Container -->
