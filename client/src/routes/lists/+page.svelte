@@ -2,6 +2,7 @@
 	import type { PageData } from './$types';
 	import type { Book, ReadingProgress, DisplayBook } from '$lib/types';
 	import { enhance } from '$app/forms';
+	import Sidebar from '$lib/components/Sidebar.svelte';
 
 	export let data: PageData;
 
@@ -78,23 +79,12 @@
 </script>
 
 <div class="flex min-h-screen">
-	<!-- Sidebar -->
-	<div class="w-64 bg-gray-800 p-4 text-white">
-		<h2 class="mb-4 text-3xl font-bold">Your Lists</h2>
-		<ul class="space-y-2">
-			{#each lists as listName}
-				<li>
-					<button
-						class="w-full rounded px-2 py-1 text-lg text-left hover:bg-gray-700"
-						class:bg-gray-700={selectedList === listName}
-						on:click={() => selectedList = listName}
-					>
-						{listName}
-					</button>
-				</li>
-			{/each}
-		</ul>
-	</div>
+	<Sidebar 
+		title="Your Lists"
+		items={lists}
+		selectedItem={selectedList}
+		onSelect={(item) => selectedList = item}
+	/>
 
 	<!-- Main Content -->
 	<div class="flex-1 bg-gray-100 p-6">

@@ -35,7 +35,7 @@
 				<h1 class="text-4xl font-bold text-gray-800 md:text-5xl lg:text-6xl">Current Reads</h1>
 			</div>
 
-			{#if !data.profile || data.profile.currentlyReading.length === 0}
+			{#if !data.profile || !data.profile.currentlyReading || data.profile.currentlyReading.length === 0}
 				<div class="flex w-full items-center justify-center py-16">
 					<p class="text-2xl text-gray-500">No current reads</p>
 				</div>
