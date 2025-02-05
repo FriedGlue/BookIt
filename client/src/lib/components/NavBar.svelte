@@ -106,78 +106,88 @@
 
 </script>
 
-<nav class="flex flex-wrap items-center justify-between bg-blue-500 p-6">
-	<div class="flex items-center space-x-8">
+
+<nav class="flex flex-col bg-blue-500">
+	<!-- Top Row -->
+	<div class="flex items-center justify-between p-4">
 		<div class="flex flex-shrink-0 items-center text-white">
 			<span class="text-6xl font-semibold tracking-tight">BookIt</span>
 		</div>
+
+		<div class="search-container relative w-1/3 min-w-[300px]">
+			<input
+				type="text"
+				bind:value={searchQuery}
+				on:input={handleSearch}
+				placeholder="Search books..."
+				class="w-full rounded-full px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400"
+			/>
+			{#if showSearchResults && searchResults.length > 0}
+				<div class="absolute z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-lg bg-white shadow-xl">
+					{#each searchResults as book (book.bookId)}
+						<a
+							href={`/books/${book.bookId}`}
+							class="flex w-full cursor-pointer items-center space-x-4 p-4 text-left hover:bg-gray-100"
+							on:click|preventDefault={() => handleBookNavigation(book)}
+						>
+							{#if book.thumbnail}
+								<div class="h-16 w-12">
+									<img 
+										src={book.thumbnail} 
+										alt={book.title} 
+										class="h-full w-full object-cover" 
+										transition:fade={{ duration: 200 }}
+									/>
+								</div>
+							{/if}
+							<div>
+								<h3 class="font-medium text-gray-900">{book.title}</h3>
+								<p class="text-sm text-gray-600">
+									{book.authors ? book.authors[0] : 'Unknown Author'}
+								</p>
+							</div>
+						</a>
+					{/each}
+				</div>
+			{/if}
+		</div>
+
 		<div class="flex items-center space-x-4">
-			<a href="/" class="block text-teal-200 hover:text-white lg:inline-block"> Home </a>
-			<a href="/lists" class="block text-teal-200 hover:text-white lg:inline-block"> Shelves </a>
-			<a href="/reading-log" class="block text-teal-200 hover:text-white lg:inline-block"> Reading Log </a>
+			{#if $isAuthenticated}
+				<button
+					on:click={handleLogout}
+					class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
+				>
+					Log Out
+				</button>
+			{:else}
+				<a
+					href="/login"
+					class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
+				>
+					Sign In
+				</a>
+				<a
+					href="/signup"
+					class="inline-block rounded-full border-2 border-blue-500 bg-blue-500 px-4 py-2 text-lg font-semibold text-white"
+				>
+					Sign Up
+				</a>
+			{/if}
 		</div>
 	</div>
 
-	<div class="search-container relative w-1/3 min-w-[300px]">
-		<input
-			type="text"
-			bind:value={searchQuery}
-			on:input={handleSearch}
-			placeholder="Search books..."
-			class="w-full rounded-full px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400"
-		/>
-		{#if showSearchResults && searchResults.length > 0}
-			<div class="absolute z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-lg bg-white shadow-xl">
-				{#each searchResults as book (book.bookId)}
-					<a
-						href={`/books/${book.bookId}`}
-						class="flex w-full cursor-pointer items-center space-x-4 p-4 text-left hover:bg-gray-100"
-						on:click|preventDefault={() => handleBookNavigation(book)}
-					>
-						{#if book.thumbnail}
-							<div class="h-16 w-12">
-								<img 
-									src={book.thumbnail} 
-									alt={book.title} 
-									class="h-full w-full object-cover" 
-									transition:fade={{ duration: 200 }}
-								/>
-							</div>
-						{/if}
-						<div>
-							<h3 class="font-medium text-gray-900">{book.title}</h3>
-							<p class="text-sm text-gray-600">
-								{book.authors ? book.authors[0] : 'Unknown Author'}
-							</p>
-						</div>
-					</a>
-				{/each}
-			</div>
-		{/if}
-	</div>
-
-	<div class="flex items-center space-x-4">
-		{#if $isAuthenticated}
-			<button
-				on:click={handleLogout}
-				class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
-			>
-				Log Out
-			</button>
-		{:else}
-			<a
-				href="/login"
-				class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
-			>
-				Sign In
-			</a>
-			<a
-				href="/signup"
-				class="inline-block rounded-full border-2 border-blue-500 bg-blue-500 px-4 py-2 text-lg font-semibold text-white"
-			>
-				Sign Up
-			</a>
-		{/if}
+	<!-- Bottom Row -->
+	<div class="flex justify-center bg-blue-800 p-2">
+		<div class="flex items-center space-x-8">
+			<a href="/" class="block text-teal-200 hover:text-white lg:inline-block"> Home </a>
+			<div class="h-4 w-px bg-white"></div>
+			<a href="/bookshelves" class="block text-teal-200 hover:text-white lg:inline-block"> Bookshelves </a>
+			<div class="h-4 w-px bg-white"></div>
+			<a href="/reading-log" class="block text-teal-200 hover:text-white lg:inline-block"> Challenges </a>
+			<div class="h-4 w-px bg-white"></div>
+			<a href="/reading-log" class="block text-teal-200 hover:text-white lg:inline-block"> Reading Log </a>
+		</div>
 	</div>
 </nav>
 

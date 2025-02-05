@@ -24,6 +24,9 @@
 		selectedBook = null;
 		newPageCount = '';
 	}
+
+	// Add this calculation before the template
+	const booksPerMonth = 2.1; // Replace with actual calculation based on your data
 </script>
 
 <!-- Outer container preserving your original layout classes -->
@@ -101,9 +104,196 @@
 		<!-- Divider -->
 		<hr class="my-16 border-gray-300" />
 
+		<!---Reading Challenge-->
+		<section class="mx-8 mt-16 flex flex-col items-center py-4 md:mx-16 lg:mx-40">
+
+			<div class="flex flex-col items-center">
+				<div class="mb-8 w-full text-left">
+					<h1 class="text-2xl font-bold text-gray-600 md:text-3xl lg:text-4xl">2025 Reading Challenge</h1>
+					<p class="text-gray-600 my-4">
+						Read 100 books in 2025.
+					</p>
+				<div class="mt-4 w-full">
+					<!-- Progress Bar Container -->
+					<div class="h-8 w-full overflow-hidden border-2 border-gray-300 rounded-full bg-gray-200">
+						<div
+							class="h-full bg-blue-500 transition-all duration-300"
+							style="width: 25%;"
+						></div>
+					</div>
+
+					<!-- Stats Below Progress Bar -->
+					<div class="mt-2 flex items-center justify-between text-sm text-gray-600">
+						<span>25 books read</span>
+						<span>75 books remaining</span>
+					</div>
+
+					<!-- Additional Stats -->
+					<div class="mt-4 grid grid-cols-3 gap-4">
+						<div class="rounded-lg bg-gray-100 p-4 text-center">
+							<p class="text-2xl font-bold text-blue-500">25%</p>
+							<p class="text-xs text-gray-600">Complete</p>
+						</div>
+						<div class="rounded-lg bg-gray-100 p-4 text-center">
+							<p class="text-2xl font-bold text-blue-500">2.1</p>
+							<p class="text-xs text-gray-600">Books/Month</p>
+						</div>
+						<div class="rounded-lg bg-gray-100 p-4 text-center">
+							<p class="text-2xl font-bold text-blue-500">8.3</p>
+							<p class="text-xs text-gray-600">Books/Month Needed</p>
+						</div>
+					</div>
+
+					<!-- Reading Challenge Status -->
+					<div class="mt-6 flex items-center gap-4">
+						{#if booksPerMonth >= 8.3}
+							<div class="flex items-center gap-2">
+								<div class="h-3 w-3 rounded-full bg-green-500"></div>
+								<span class="text-sm text-gray-600">On Track</span>
+							</div>
+						{:else if booksPerMonth >= 6}
+							<div class="flex items-center gap-2">
+								<div class="h-3 w-3 rounded-full bg-yellow-500"></div>
+								<span class="text-sm text-gray-600">Slightly Behind</span>
+							</div>
+						{:else}
+							<div class="flex items-center gap-2">
+								<div class="h-3 w-3 rounded-full bg-red-500"></div>
+								<span class="text-sm text-gray-600">Behind Schedule</span>
+							</div>
+						{/if}
+						</div>
+					</div>
+				</div>
+
+				<!-- February Reading Challenge -->
+
+				<div class="mb-8 w-full text-left py-16">
+					<h1 class="text-2xl font-bold text-gray-600 md:text-3xl lg:text-4xl">February Reading Challenge</h1>
+					<p class="text-gray-600 my-4">
+						Read 6 books in February.
+					</p>
+				<div class="mt-4 w-full">
+					<!-- Progress Bar Container -->
+					<div class="h-8 w-full overflow-hidden border-2 border-gray-300 rounded-full bg-gray-200">
+						<div
+							class="h-full bg-blue-500 transition-all duration-300"
+							style="width: 80%;"
+						></div>
+					</div>
+
+					<!-- Stats Below Progress Bar -->
+					<div class="mt-2 flex items-center justify-between text-sm text-gray-600">
+						<span>2 books read</span>
+						<span>4 books remaining</span>
+					</div>
+
+					<!-- Additional Stats -->
+					<div class="mt-4 grid grid-cols-3 gap-4">
+						<div class="rounded-lg bg-gray-100 p-4 text-center">
+							<p class="text-2xl font-bold text-blue-500">80%</p>
+							<p class="text-xs text-gray-600">Complete</p>
+						</div>
+						<div class="rounded-lg bg-gray-100 p-4 text-center">
+							<p class="text-2xl font-bold text-blue-500">1.5</p>
+							<p class="text-xs text-gray-600">Books/week</p>
+						</div>
+						<div class="rounded-lg bg-gray-100 p-4 text-center">
+							<p class="text-2xl font-bold text-blue-500">1.5</p>
+							<p class="text-xs text-gray-600">Books/Week Needed</p>
+						</div>
+					</div>
+
+					<!-- Reading Challenge Status -->
+					<div class="mt-6 flex items-center gap-4">
+						{#if booksPerMonth >= 2.1}
+							<div class="flex items-center gap-2">
+								<div class="h-3 w-3 rounded-full bg-green-500"></div>
+								<span class="text-sm text-gray-600">On Track</span>
+							</div>
+						{:else if booksPerMonth >= 2.1}
+							<div class="flex items-center gap-2">
+								<div class="h-3 w-3 rounded-full bg-yellow-500"></div>
+								<span class="text-sm text-gray-600">Slightly Behind</span>
+							</div>
+						{:else}
+							<div class="flex items-center gap-2">
+								<div class="h-3 w-3 rounded-full bg-red-500"></div>
+								<span class="text-sm text-gray-600">Behind Schedule</span>
+							</div>
+						{/if}
+						</div>
+					</div>
+
+				<!-- Pages Challenge -->
+
+				<div class="mb-8 w-full text-left pt-16">
+					<h1 class="text-2xl font-bold text-gray-600 md:text-3xl lg:text-4xl">2025 Pages Challenge</h1>
+					<p class="text-gray-600 my-4">
+						Read 10,000 pages in 2025.
+					</p>
+				<div class="mt-4 w-full">
+					<!-- Progress Bar Container -->
+					<div class="h-8 w-full overflow-hidden border-2 border-gray-300 rounded-full bg-gray-200">
+						<div
+							class="h-full bg-blue-500 transition-all duration-300"
+							style="width: 80%;"
+						></div>
+					</div>
+
+					<!-- Stats Below Progress Bar -->
+					<div class="mt-2 flex items-center justify-between text-sm text-gray-600">
+						<span>2,000 pages read</span>
+						<span>8,000 pages remaining</span>
+					</div>
+
+					<!-- Additional Stats -->
+					<div class="mt-4 grid grid-cols-3 gap-4">
+						<div class="rounded-lg bg-gray-100 p-4 text-center">
+							<p class="text-2xl font-bold text-blue-500">20%</p>
+							<p class="text-xs text-gray-600">Complete</p>
+						</div>
+						<div class="rounded-lg bg-gray-100 p-4 text-center">
+							<p class="text-2xl font-bold text-blue-500">200</p>
+							<p class="text-xs text-gray-600">Pages/Day</p>
+						</div>
+						<div class="rounded-lg bg-gray-100 p-4 text-center">
+							<p class="text-2xl font-bold text-blue-500">166.7</p>
+							<p class="text-xs text-gray-600">Pages/Day Needed</p>
+						</div>
+					</div>
+
+					<!-- Reading Challenge Status -->
+					<div class="mt-6 flex items-center gap-4">
+						{#if booksPerMonth >= 5}
+							<div class="flex items-center gap-2">
+								<div class="h-3 w-3 rounded-full bg-green-500"></div>
+								<span class="text-sm text-gray-600">On Track</span>
+							</div>
+						{:else if booksPerMonth >= 1}
+							<div class="flex items-center gap-2">
+								<div class="h-3 w-3 rounded-full bg-yellow-500"></div>
+								<span class="text-sm text-gray-600">Slightly Behind</span>
+							</div>
+						{:else}
+							<div class="flex items-center gap-2">
+								<div class="h-3 w-3 rounded-full bg-red-500"></div>
+								<span class="text-sm text-gray-600">Behind Schedule</span>
+							</div>
+						{/if}
+						</div>
+					</div>
+
+				</div>
+			</div>
+		</section>
+
+		<!-- Divider -->
+		<hr class="my-8 border-gray-300" />
+
 		<!-- To Be Read Section -->
 		{#if data.profile && data.profile.lists && data.profile.lists.toBeRead}
-			<section class="mx-8 mt-16 flex flex-col items-start px-4 md:mx-16 lg:mx-40">
+			<section class="mx-8 mt-16 flex flex-col items-start py-4 md:mx-16 lg:mx-40">
 				<div class="mb-8 w-full text-left">
 					<h1 class="text-4xl font-bold text-gray-600 md:text-5xl lg:text-4xl">
 						To Be Read ({data.profile.lists.toBeRead.length})

@@ -23,7 +23,7 @@
 	};
 
 	// Create a list of all available list names
-	const lists = ['All', 'To Be Read', 'Read', ...Object.keys(data.customLists ?? {})];
+	const shelves = ['All', 'To Be Read', 'Read', ...Object.keys(data.customLists ?? {})];
 
 	// Helper function to create default progress
 	function createDefaultProgress(): ReadingProgress {
@@ -89,12 +89,12 @@
 
 <div class="flex min-h-screen">
 	<Sidebar 
-		title="Your Lists"
-		items={lists}
+		title="Your Shelves"
+		items={shelves}
 		selectedItem={selectedList}
 		onSelect={(item) => {
 			selectedList = item;
-			history.replaceState(null, '', `/lists?list=${item}`);
+			history.replaceState(null, '', `/bookshelves?shelf=${item}`);
 		}}
 	/>
 
