@@ -7,11 +7,13 @@ export interface ReadingProgress {
 
 export interface Book {
 	bookId: string;
-	isbn?: string;
+	isbn13?: string;
 	title?: string;
+	titleLowercase?: string;
 	authors?: string[];
+	pageCount?: number;
 	thumbnail?: string;
-	totalPages?: number;
+	tags?: string[];
 	progress?: ReadingProgress;
 	_listType?: string;
 }

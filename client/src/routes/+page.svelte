@@ -32,12 +32,12 @@
 		<!-- Current Reads Section -->
 		<section class="mx-8 mt-16 flex flex-col items-start px-4 md:mx-16 lg:mx-40">
 			<div class="mb-8 w-full text-left">
-				<h1 class="text-4xl font-bold text-gray-800 md:text-5xl lg:text-6xl">Current Reads</h1>
+				<h1 class="text-4xl font-bold text-gray-800 md:text-5xl lg:text-6xl">Currently Reading</h1>
 			</div>
 
 			{#if !data.profile || !data.profile.currentlyReading || data.profile.currentlyReading.length === 0}
 				<div class="flex w-full items-center justify-center py-16">
-					<p class="text-2xl text-gray-500">No current reads</p>
+					<p class="text-4xl text-gray-500">Nothing... Get To Reading!</p>
 				</div>
 			{:else}
 				<div class="grid w-full grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

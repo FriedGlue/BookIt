@@ -3,6 +3,7 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { isAuthenticated } from '$lib/stores/authStore';
+	import { fade } from 'svelte/transition';
 
 	let searchQuery = '';
 	let searchResults: any[] = [];
@@ -10,13 +11,21 @@
 	let showSearchResults = false;
 	let isAddingToList = false;
 	let toBeReadList: any[] = [];
+	let isNavigating = false;
 
 	const authService = new AuthService;
 
 	onMount(async () => {
-		await authService.isAuthenticated();
-
-	})
+		try {
+			const isAuth = await authService.isAuthenticated();
+			if (!isAuth) {
+				isAuthenticated.set(false);
+			}
+		} catch (error) {
+			console.error('Error checking authentication:', error);
+			isAuthenticated.set(false);
+		}
+	});
 
 	// ---- Move "searchBooks" to call your local route:
 	async function handleSearch() {
@@ -67,6 +76,34 @@
 		return await res.json();
 	}
 
+	async function preloadImage(src: string): Promise<void> {
+		return new Promise((resolve, reject) => {
+			const img = new Image();
+			img.onload = () => resolve();
+			img.onerror = reject;
+			img.src = src;
+		});
+	}
+
+	async function handleBookNavigation(book: any) {
+		try {
+			isNavigating = true;
+			searchQuery = '';
+			showSearchResults = false;
+
+			// Preload the book's image if it exists
+			if (book.thumbnail) {
+				await preloadImage(book.thumbnail);
+			}
+
+			const newPath = `/books/${book.bookId}`;
+
+			await goto(newPath, { invalidateAll: true });
+		} finally {
+			isNavigating = false;
+		}
+	}
+
 </script>
 
 <nav class="flex flex-wrap items-center justify-between bg-blue-500 p-6">
@@ -76,8 +113,8 @@
 		</div>
 		<div class="flex items-center space-x-4">
 			<a href="/" class="block text-teal-200 hover:text-white lg:inline-block"> Home </a>
-			<a href="/lists" class="block text-teal-200 hover:text-white lg:inline-block"> Lists </a>
-			<a href="/reading-log" class="block text-teal-200 hover:text-white lg:inline-block"> Log </a>
+			<a href="/lists" class="block text-teal-200 hover:text-white lg:inline-block"> Shelves </a>
+			<a href="/reading-log" class="block text-teal-200 hover:text-white lg:inline-block"> Reading Log </a>
 		</div>
 	</div>
 
@@ -95,16 +132,17 @@
 					<a
 						href={`/books/${book.bookId}`}
 						class="flex w-full cursor-pointer items-center space-x-4 p-4 text-left hover:bg-gray-100"
-						on:click={() => {
-							searchQuery = '';
-							showSearchResults = false;
-							if (window.location.pathname.includes('/books/')) {
-								location.reload();
-							}
-						}}
+						on:click|preventDefault={() => handleBookNavigation(book)}
 					>
 						{#if book.thumbnail}
-							<img src={book.thumbnail} alt={book.title} class="h-16 w-12 object-cover" />
+							<div class="h-16 w-12">
+								<img 
+									src={book.thumbnail} 
+									alt={book.title} 
+									class="h-full w-full object-cover" 
+									transition:fade={{ duration: 200 }}
+								/>
+							</div>
 						{/if}
 						<div>
 							<h3 class="font-medium text-gray-900">{book.title}</h3>
@@ -126,12 +164,6 @@
 			>
 				Log Out
 			</button>
-			<a
-				href="/profile"
-				class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
-			>
-				View Profile
-			</a>
 		{:else}
 			<a
 				href="/login"

@@ -4,11 +4,10 @@
 
     export let data: PageData;
 
-    let book = data.book ? (data.book[0] as Book) : null;
+    $: book = data.book ? (data.book[0] as Book) : null;
     console.log('Data:', data);
 
     async function addToBeRead() {
-
         const response = await fetch(`/api/books/add`, {
             method: 'POST',
             headers: {
@@ -23,29 +22,34 @@
     }
 </script>
 
-<div>
-    <p>{book?.title}</p>
-</div>
-
 <section class="mx-8 mt-16 flex flex-col items-start px-4 md:mx-16 lg:mx-40">
-	{#if data.book}
+	{#if book}
 		<div>
 			<div>
-				<img src={book?.coverImageUrl || 'default-cover-image-url'} alt={`Cover of ${book?.title} by ${book?.authors}`} />
-				<h2>{book?.title}</h2>
-				<p>{book?.authors}</p>
+				<img 
+					src={book.coverImageUrl || 'default-cover-image-url'} 
+					alt={`Cover of ${book.title} by ${book.authors?.join(', ')}`} 
+					class="max-w-xs shadow-lg"
+				/>
+				<h2 class="mt-4 text-2xl font-bold">{book.title}</h2>
+				<p class="text-gray-600">{book.authors?.join(', ')}</p>
+				{#if book.pageCount}
+					<p class="text-sm text-gray-500">{book.pageCount} pages</p>
+				{/if}
 			</div>
 		</div>
 	{:else}
 		<p class="text-2xl text-gray-500">Loading...</p>
 	{/if}
-</section>
 
-    <button 
-        on:click={() => {
-            addToBeRead();
-        }}
-        type="submit"
-        class="h-8 w-full rounded-full bg-white text-gray-800
-                           transition-all duration-200 hover:bg-blue-500 hover:text-white"
-    >Add Book to to be read list</button>
+	{#if book}
+		<button 
+			on:click={addToBeRead}
+			type="submit"
+			class="mt-4 h-8 w-full rounded-full bg-white text-gray-800
+						   transition-all duration-200 hover:bg-blue-500 hover:text-white"
+		>
+			Add Book to to be read list
+		</button>
+	{/if}
+</section>
