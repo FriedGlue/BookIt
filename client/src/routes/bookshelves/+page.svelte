@@ -34,17 +34,22 @@
 		};
 	}
 
-	// Create a normalized map of all books by list type
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	// update this to use the DisplayBook type
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 	const booksByList: BooksByList = {
 		'To Be Read': (data.toBeReadList ?? []).map((book) => ({
 			...book,
 			_listType: 'toBeRead',
-			progress: createDefaultProgress()
+			progress: createDefaultProgress(),
+			totalPages: 0
 		})),
 		Read: (data.readList ?? []).map((book) => ({
 			...book,
 			_listType: 'read',
-			progress: createDefaultProgress()
+			progress: createDefaultProgress(),
+			totalPages: 0
 		})),
 		...Object.fromEntries(
 			Object.entries(data.customLists ?? {}).map(([listName, books]) => [
@@ -52,7 +57,8 @@
 				books.map((book) => ({
 					...book,
 					_listType: listName,
-					progress: createDefaultProgress()
+					progress: createDefaultProgress(),
+					totalPages: 0
 				}))
 			])
 		)

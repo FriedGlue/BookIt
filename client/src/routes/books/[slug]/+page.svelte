@@ -27,7 +27,7 @@
 		<div>
 			<div>
 				<img
-					src={book.coverImageUrl || 'default-cover-image-url'}
+					src={book.thumbnail || 'default-cover-image-url'}
 					alt={`Cover of ${book.title} by ${book.authors?.join(', ')}`}
 					class="max-w-xs shadow-lg"
 				/>

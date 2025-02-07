@@ -1,4 +1,3 @@
-import type { Book } from '$lib/types';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ fetch, params }) => {
@@ -25,7 +24,7 @@ export const load: PageServerLoad = async ({ fetch, params }) => {
 		const book = books[0];
 		console.log('Selected book:', book);
 
-		if (!book || !book.bookId) {
+		if (!book?.bookId) {
 			console.log('Invalid book data');
 			return { book: null };
 		}

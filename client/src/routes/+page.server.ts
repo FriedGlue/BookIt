@@ -3,15 +3,11 @@ import type { PageServerLoad, Actions } from './$types';
 import { BookService } from '$lib/services/bookService';
 import type { Profile } from '$lib/types';
 
-export const load: PageServerLoad = async ({ fetch, cookies }) => {
+export const load: PageServerLoad = async ({ fetch }) => {
 	let profile: Profile | null = null;
 
 	try {
-		const response = await fetch('/api/profile', {
-			headers: {
-				cookie: cookies.toString()
-			}
-		});
+		const response = await fetch('/api/profile');
 
 		if (!response.ok) {
 			return { profile: null };
