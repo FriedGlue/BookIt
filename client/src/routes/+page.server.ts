@@ -1,37 +1,44 @@
 // +page.server.ts
-import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import type { PageServerLoad, Actions } from './$types';
-import { BookService } from '$lib/services/bookService'; // <--- use your correct import path
+import { BookService } from '$lib/services/bookService';
 import type { Profile } from '$lib/types';
 
 export const load: PageServerLoad = async ({ fetch, cookies }) => {
-  let profile: Profile | null = null;
+	let profile: Profile | null = null;
 
-  const token = cookies.get('idToken');
-  if (!token) {
-    return { profile: null };
-  }
+	try {
+		const response = await fetch('/api/profile', {
+			headers: {
+				cookie: cookies.toString()
+			}
+		});
 
-  console.log('Fetching reading log...');
-  const response = await fetch(`${PUBLIC_API_BASE_URL}/profile`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    }
-  });
+		if (!response.ok) {
+			return { profile: null };
+		}
 
-  if (!response.ok) {
-    console.error('Failed to load profile for reading log', response.statusText);
-    return { profile: null };
-  }
+		profile = await response.json();
 
-  profile = await response.json();
+		// Load reading challenges
+		if (profile) {
+			try {
+				const challenges = profile.challenges;
+				if (challenges && challenges.length > 0) {
+					profile.challenges = challenges;
+				}
+			} catch (error) {
+				console.error('Error loading reading challenges:', error);
+			}
+		}
 
-  return { profile };
+		return { profile };
+	} catch (error) {
+		console.error('Error loading profile:', error);
+		return { profile: null };
+	}
 };
 
 export const actions: Actions = {
-
 	startReading: async ({ request, cookies }) => {
 		const token = cookies.get('idToken');
 		if (!token) return { error: 'No token' };
@@ -135,8 +142,7 @@ export const actions: Actions = {
 	},
 
 	finishReading: async () => {
-		const response = await fetch('/api/currentlyReading/finishReading', {
-		});
+		const response = await fetch('/api/currentlyReading/finishReading', {});
 		if (!response.ok) {
 			throw new Error('Failed to finish reading', { cause: response.statusText });
 		}

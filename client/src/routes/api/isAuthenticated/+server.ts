@@ -1,4 +1,4 @@
-import { jwtDecode }  from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode';
 import type { Cookies } from '@sveltejs/kit';
 import type { DecodedToken } from '$lib/types';
 

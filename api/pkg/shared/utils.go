@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 )
 
-// getUserIDFromToken extracts the user’s Cognito “sub” claim
+// getUserIDFromToken extracts the user's Cognito "sub" claim
 func GetUserIDFromToken(request events.APIGatewayProxyRequest) (string, error) {
 	claims, ok := request.RequestContext.Authorizer["claims"].(map[string]interface{})
 	if !ok {
@@ -39,8 +39,26 @@ func ErrorResponse(status int, message string) events.APIGatewayProxyResponse {
 	return events.APIGatewayProxyResponse{
 		StatusCode: status,
 		Headers: map[string]string{
-			"Content-Type": "application/json",
+			"Content-Type":                 "application/json",
+			"Access-Control-Allow-Origin":  "*",
+			"Access-Control-Allow-Methods": "OPTIONS,POST,GET,PUT,DELETE",
+			"Access-Control-Allow-Headers": "Content-Type,Authorization",
 		},
 		Body: string(body),
+	}
+}
+
+// SuccessResponse is a helper to generate an APIGatewayProxyResponse with a given status and body.
+func SuccessResponse(status int, body interface{}) events.APIGatewayProxyResponse {
+	jsonBody, _ := json.Marshal(body)
+	return events.APIGatewayProxyResponse{
+		StatusCode: status,
+		Headers: map[string]string{
+			"Content-Type":                 "application/json",
+			"Access-Control-Allow-Origin":  "*",
+			"Access-Control-Allow-Methods": "OPTIONS,POST,GET,PUT,DELETE",
+			"Access-Control-Allow-Headers": "Content-Type,Authorization",
+		},
+		Body: string(jsonBody),
 	}
 }

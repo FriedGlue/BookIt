@@ -36,12 +36,12 @@
 
 	// Create a normalized map of all books by list type
 	const booksByList: BooksByList = {
-		'To Be Read': (data.toBeReadList ?? []).map(book => ({
+		'To Be Read': (data.toBeReadList ?? []).map((book) => ({
 			...book,
 			_listType: 'toBeRead',
 			progress: createDefaultProgress()
 		})),
-		'Read': (data.readList ?? []).map(book => ({
+		Read: (data.readList ?? []).map((book) => ({
 			...book,
 			_listType: 'read',
 			progress: createDefaultProgress()
@@ -49,7 +49,7 @@
 		...Object.fromEntries(
 			Object.entries(data.customLists ?? {}).map(([listName, books]) => [
 				listName,
-				books.map(book => ({
+				books.map((book) => ({
 					...book,
 					_listType: listName,
 					progress: createDefaultProgress()
@@ -63,19 +63,27 @@
 		if (selectedList === 'All') {
 			displayBooks = Object.values(booksByList).flat();
 		} else {
-			const listKey = selectedList === 'To Be Read' ? 'To Be Read' : 
-										selectedList === 'Read' ? 'Read' : selectedList;
+			const listKey =
+				selectedList === 'To Be Read'
+					? 'To Be Read'
+					: selectedList === 'Read'
+						? 'Read'
+						: selectedList;
 			displayBooks = booksByList[listKey] ?? [];
 		}
 	}
 
 	function removeBook(bookId: string) {
-		displayBooks = displayBooks.filter(book => book.bookId !== bookId);
+		displayBooks = displayBooks.filter((book) => book.bookId !== bookId);
 		// Also remove from the source list to keep data in sync
-		const listKey = selectedList === 'To Be Read' ? 'To Be Read' : 
-									 selectedList === 'Read' ? 'Read' : selectedList;
+		const listKey =
+			selectedList === 'To Be Read'
+				? 'To Be Read'
+				: selectedList === 'Read'
+					? 'Read'
+					: selectedList;
 		if (listKey !== 'All') {
-			booksByList[listKey] = booksByList[listKey].filter(book => book.bookId !== bookId);
+			booksByList[listKey] = booksByList[listKey].filter((book) => book.bookId !== bookId);
 		}
 	}
 
@@ -88,7 +96,7 @@
 </script>
 
 <div class="flex min-h-screen">
-	<Sidebar 
+	<Sidebar
 		title="Your Shelves"
 		items={shelves}
 		selectedItem={selectedList}
@@ -135,11 +143,11 @@
 								</p>
 							</div>
 
-							<form 
-								method="post" 
-								action="?/removeFromList" 
-								class="mt-2" 
-								use:enhance 
+							<form
+								method="post"
+								action="?/removeFromList"
+								class="mt-2"
+								use:enhance
 								on:submit|preventDefault={() => removeBook(book.bookId)}
 							>
 								<input type="hidden" name="bookId" value={book.bookId} />

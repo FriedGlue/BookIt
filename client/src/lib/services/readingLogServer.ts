@@ -2,7 +2,7 @@
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import type { ReadingLogItem } from '$lib/types';
 
-export class ReadingLogService{
+export class ReadingLogService {
 	private readonly token: string;
 
 	constructor(token: string) {
@@ -21,14 +21,15 @@ export class ReadingLogService{
 	}
 
 	async getReadingList(): Promise<ReadingLogItem> {
-		const response = await fetch(
-			`${PUBLIC_API_BASE_URL}/reading-log`,
-			this.getOptions('GET')
-		);
+		const response = await fetch(`${PUBLIC_API_BASE_URL}/reading-log`, this.getOptions('GET'));
 		return await response.json();
 	}
 
-	async updateBookProgress(readingLogItemId: string, pagesRead: number, notes: string): Promise<void> {
+	async updateBookProgress(
+		readingLogItemId: string,
+		pagesRead: number,
+		notes: string
+	): Promise<void> {
 		const response = await fetch(
 			`${PUBLIC_API_BASE_URL}/currently-reading`,
 			this.getOptions('PUT', { readingLogItemId, pagesRead, notes })

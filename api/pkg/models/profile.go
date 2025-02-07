@@ -6,6 +6,7 @@ type Profile struct {
 	CurrentlyReading   []CurrentlyReadingItem `json:"currentlyReading,omitempty"`
 	Lists              UserLists              `json:"lists,omitempty"`
 	ReadingLog         []ReadingLogItem       `json:"readingLog,omitempty"`
+	Challenges         []ReadingChallenge     `json:"challenges,omitempty"`
 }
 
 type ProfileInformation struct {

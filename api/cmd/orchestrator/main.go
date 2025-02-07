@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"strings"
 
 	"github.com/FriedGlue/BookIt/api/pkg/handlers"
@@ -15,7 +16,7 @@ func addCORSHeaders(response events.APIGatewayProxyResponse) events.APIGatewayPr
 	if response.Headers == nil {
 		response.Headers = map[string]string{}
 	}
-	response.Headers["Access-Control-Allow-Origin"] = "https://getbookit.org"
+	response.Headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
 	response.Headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
 	response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token"
 	response.Headers["Access-Control-Allow-Credentials"] = "TRUE"
@@ -123,6 +124,42 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 			response = events.APIGatewayProxyResponse{
 				StatusCode: 405,
 				Body:       "Method Not Allowed for /reading-log",
+			}
+		}
+
+	case strings.HasPrefix(path, "/challenges/"):
+		// Extract the ID from the path
+		pathParts := strings.Split(path, "/")
+		if len(pathParts) == 3 && pathParts[2] != "" {
+			// This is a request for a specific challenge
+			switch method {
+			case http.MethodPut:
+				response = handlers.UpdateChallenge(request)
+			case http.MethodDelete:
+				response = handlers.DeleteChallenge(request)
+			default:
+				response = events.APIGatewayProxyResponse{
+					StatusCode: 405,
+					Body:       "Method Not Allowed for /challenges/{id}",
+				}
+			}
+		} else {
+			response = events.APIGatewayProxyResponse{
+				StatusCode: 404,
+				Body:       "Not Found",
+			}
+		}
+
+	case path == "/challenges":
+		switch method {
+		case http.MethodPost:
+			response = handlers.CreateChallenge(request)
+		case http.MethodGet:
+			response = handlers.GetChallenges(request)
+		default:
+			response = events.APIGatewayProxyResponse{
+				StatusCode: 405,
+				Body:       "Method Not Allowed for /challenges",
 			}
 		}
 

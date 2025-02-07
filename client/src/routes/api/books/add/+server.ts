@@ -38,5 +38,4 @@ export const POST: RequestHandler = async ({ request, cookies, fetch }) => {
 		console.error('Add to list route error:', error);
 		return new Response('Internal Server Error', { status: 500 });
 	}
-
 };

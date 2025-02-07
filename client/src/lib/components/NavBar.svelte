@@ -13,7 +13,7 @@
 	let toBeReadList: any[] = [];
 	let isNavigating = false;
 
-	const authService = new AuthService;
+	const authService = new AuthService();
 
 	onMount(async () => {
 		try {
@@ -103,9 +103,7 @@
 			isNavigating = false;
 		}
 	}
-
 </script>
-
 
 <nav class="flex flex-col bg-blue-500">
 	<!-- Top Row -->
@@ -123,7 +121,9 @@
 				class="w-full rounded-full px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400"
 			/>
 			{#if showSearchResults && searchResults.length > 0}
-				<div class="absolute z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-lg bg-white shadow-xl">
+				<div
+					class="absolute z-50 mt-2 max-h-96 w-full overflow-y-auto rounded-lg bg-white shadow-xl"
+				>
 					{#each searchResults as book (book.bookId)}
 						<a
 							href={`/books/${book.bookId}`}
@@ -132,10 +132,10 @@
 						>
 							{#if book.thumbnail}
 								<div class="h-16 w-12">
-									<img 
-										src={book.thumbnail} 
-										alt={book.title} 
-										class="h-full w-full object-cover" 
+									<img
+										src={book.thumbnail}
+										alt={book.title}
+										class="h-full w-full object-cover"
 										transition:fade={{ duration: 200 }}
 									/>
 								</div>
@@ -182,11 +182,17 @@
 		<div class="flex items-center space-x-8">
 			<a href="/" class="block text-teal-200 hover:text-white lg:inline-block"> Home </a>
 			<div class="h-4 w-px bg-white"></div>
-			<a href="/bookshelves" class="block text-teal-200 hover:text-white lg:inline-block"> Bookshelves </a>
+			<a href="/bookshelves" class="block text-teal-200 hover:text-white lg:inline-block">
+				Bookshelves
+			</a>
 			<div class="h-4 w-px bg-white"></div>
-			<a href="/reading-log" class="block text-teal-200 hover:text-white lg:inline-block"> Challenges </a>
+			<a href="/reading-challenges" class="block text-teal-200 hover:text-white lg:inline-block">
+				Challenges
+			</a>
 			<div class="h-4 w-px bg-white"></div>
-			<a href="/reading-log" class="block text-teal-200 hover:text-white lg:inline-block"> Reading Log </a>
+			<a href="/reading-log" class="block text-teal-200 hover:text-white lg:inline-block">
+				Reading Log
+			</a>
 		</div>
 	</div>
 </nav>

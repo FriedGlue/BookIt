@@ -16,6 +16,7 @@ export interface Book {
 	tags?: string[];
 	progress?: ReadingProgress;
 	_listType?: string;
+	totalPages: number;
 }
 
 export interface CurrentlyReadingItem {
@@ -35,6 +36,7 @@ export interface Profile {
 		read?: ReadItem[];
 		customLists?: Record<string, DisplayBook[]>;
 	};
+	challenges?: ReadingChallenge[];
 }
 
 export interface DisplayBook {
@@ -67,16 +69,40 @@ export interface ReadItem {
 }
 
 export interface ReadingLogItem {
-	_id:      string,
-	date:          string, 
-	bookId:        string,
-	bookThumbnail: string,
-	pagesRead:     number,
-	notes:         string,
+	_id: string;
+	date: string;
+	bookId: string;
+	bookThumbnail: string;
+	pagesRead: number;
+	notes: string;
 }
 
 export interface DecodedToken {
-    exp: number;
-    sub: string;
-    email: string;
+	exp: number;
+	sub: string;
+	email: string;
+}
+
+export interface ChallengeProgress {
+	current: number;
+	percentage: number;
+	rate: {
+		current: number;
+		required: number;
+		unit: string;
+	};
+}
+
+export interface ReadingChallenge {
+	id: string;
+	userId: string;
+	name: string;
+	type: 'BOOKS' | 'PAGES';
+	timeframe: 'YEAR' | 'MONTH' | 'WEEK';
+	startDate: string;
+	endDate: string;
+	target: number;
+	progress: ChallengeProgress;
+	createdAt: string;
+	updatedAt: string;
 }

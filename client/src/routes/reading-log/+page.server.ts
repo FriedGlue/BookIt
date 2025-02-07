@@ -4,28 +4,28 @@ import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import { ReadingLogService } from '$lib/services/readingLogServer';
 
 export const load: PageServerLoad = async ({ fetch, cookies }) => {
-  const token = cookies.get('idToken');
-  if (!token) {
-    // Optionally, you can redirect the user to login if not authenticated.
-    return { readingLog: [] };
-  }
+	const token = cookies.get('idToken');
+	if (!token) {
+		// Optionally, you can redirect the user to login if not authenticated.
+		return { readingLog: [] };
+	}
 
-    console.log('Fetching reading log...');
-    const response = await fetch(`${PUBLIC_API_BASE_URL}/reading-log`, {
-        headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-        }
-    });
+	console.log('Fetching reading log...');
+	const response = await fetch(`${PUBLIC_API_BASE_URL}/reading-log`, {
+		headers: {
+			Authorization: `Bearer ${token}`,
+			'Content-Type': 'application/json'
+		}
+	});
 
-  if (!response.ok) {
-    console.error('Failed to load profile for reading log', response.statusText);
-    return { readingLog: [] };
-  }
+	if (!response.ok) {
+		console.error('Failed to load profile for reading log', response.statusText);
+		return { readingLog: [] };
+	}
 
-  const readingLog = await response.json();
+	const readingLog = await response.json();
 
-  return { readingLog: readingLog || [] };
+	return { readingLog: readingLog || [] };
 };
 
 export const actions: Actions = {
@@ -36,18 +36,18 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const readingLogEntryId = formData.get('bookId')?.toString();
 		const pageCount = formData.get('newPageCount')?.toString();
-        const notes = formData.get('notes')?.toString();
+		const notes = formData.get('notes')?.toString();
 
-		if (!readingLogEntryId ) {
+		if (!readingLogEntryId) {
 			return { error: 'Missing reading log id' };
 		}
 
-        if (!pageCount || !notes) {
-            return { error: 'Missing form data' };
-        } 
+		if (!pageCount || !notes) {
+			return { error: 'Missing form data' };
+		}
 
 		try {
-			const readingLogService= new ReadingLogService(token);
+			const readingLogService = new ReadingLogService(token);
 			await readingLogService.updateBookProgress(readingLogEntryId, Number(pageCount), notes);
 			return { success: true };
 		} catch (err) {
@@ -63,7 +63,7 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const readingLogEntryId = formData.get('readingLogEntryId')?.toString();
 
-		if (!readingLogEntryId ) {
+		if (!readingLogEntryId) {
 			return { error: 'Missing reading log id' };
 		}
 
@@ -74,6 +74,6 @@ export const actions: Actions = {
 		} catch (err) {
 			console.error('Failed to remove entry:', err);
 			return { error: 'Failed to remove entry' };
-        }
+		}
 	}
 };

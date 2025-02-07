@@ -34,9 +34,8 @@ export class AuthService {
 			credentials: 'include'
 		});
 
-		if (!setCookiesResponse.ok)
-		{
-			throw new Error('Failed to set authentication cookies')
+		if (!setCookiesResponse.ok) {
+			throw new Error('Failed to set authentication cookies');
 		}
 
 		await goto('/');
@@ -88,5 +87,39 @@ export class AuthService {
 		const data = await response.json();
 
 		return data.authenticated;
+	}
+
+	async signup(username: string, email: string, password: string): Promise<void> {
+		const response = await fetch(`${PUBLIC_API_BASE_URL}/auth/signup`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ username, email, password }),
+			credentials: 'omit'
+		});
+
+		if (!response.ok) {
+			throw new Error('Signup failed');
+		}
+
+		await goto('/signup/confirm');
+	}
+
+	async confirm(username: string, code: string): Promise<void> {
+		const response = await fetch(`${PUBLIC_API_BASE_URL}/auth/confirm`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ username, code }),
+			credentials: 'omit'
+		});
+
+		if (!response.ok) {
+			throw new Error('Confirmation failed');
+		}
+
+		await goto('/login');
 	}
 }

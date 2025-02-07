@@ -8,7 +8,7 @@ const config = {
 	preprocess: vitePreprocess(),
 
 	kit: {
-			adapter: adapter({
+		adapter: adapter({
 			// See below for an explanation of these options
 			routes: {
 				include: ['/*'],
