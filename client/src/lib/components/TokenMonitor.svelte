@@ -59,8 +59,8 @@
     }
 
     onMount(() => {
-        // Check token expiration every second for more accurate testing
-        checkInterval = setInterval(checkTokenExpiration, 1000);
+        // Check token expiration every 5 minutes for more accurate testing
+        checkInterval = setInterval(checkTokenExpiration, 10000 * 300);
         // Initial check
         checkTokenExpiration();
     });
