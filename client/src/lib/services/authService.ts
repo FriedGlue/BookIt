@@ -122,4 +122,12 @@ export class AuthService {
 
 		await goto('/login');
 	}
+
+	async getToken(): Promise<string> {
+		const response = await fetch('/api/getToken', {
+			method: 'GET',
+			credentials: 'include'
+		});
+		return response.text();
+	}
 }

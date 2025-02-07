@@ -6,6 +6,19 @@
 
 	export let data: PageData;
 
+    // Helper function to round to nearest quarter
+    function roundToQuarter(num: number): number {
+        return Math.round(num * 4) / 4;
+    }
+
+    // Helper function to format rate for display
+    function formatRate(rate: number, showExact = false): string {
+        if (showExact) {
+            return rate.toFixed(2);
+        }
+        return roundToQuarter(rate).toFixed(2);
+    }
+
     $: options = [
         { id: 'all', label: 'All Challenges' },
         ...(data.profile?.challenges?.map(challenge => ({
@@ -58,23 +71,10 @@
 
     // Helper function to check if a challenge type exists
     function hasExistingChallenge(type: 'YEAR' | 'MONTH' | 'WEEK'): boolean {
-        return data.profile?.challenges?.some(challenge => {
-            const start = new Date(challenge.startDate);
-            const end = new Date(challenge.endDate);
-            const duration = end.getTime() - start.getTime();
-            const days = duration / (1000 * 60 * 60 * 24);
-            
-            switch(type) {
-                case 'YEAR':
-                    return days >= 360; // Approximately a year
-                case 'MONTH':
-                    return days >= 28 && days <= 31; // Approximately a month
-                case 'WEEK':
-                    return days <= 7 && challenge.type === 'PAGES'; // Weekly page challenge
-                default:
-                    return false;
-            }
-        }) ?? false;
+        return data.profile?.challenges?.some(challenge => 
+            challenge.timeframe === type && 
+            new Date(challenge.endDate) > new Date()  // Only consider active challenges
+        ) ?? false;
     }
 
     function getSuggestions() {
@@ -149,36 +149,9 @@
         </div>
 
         {#if data.profile?.challenges && data.profile.challenges.length > 0}
-            <ReadingChallenges challenges={filteredChallenges} />
-
-            <div class="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
-                {#each data.profile.challenges as challenge}
-                    <div class="rounded-lg bg-white p-6 shadow-lg">
-                        <h2 class="mb-4 text-xl font-semibold">{challenge.name}</h2>
-                        <p class="text-gray-600">
-                            {challenge.target}
-                            {challenge.type.toLowerCase()} by {new Date(challenge.endDate).toLocaleDateString()}
-                        </p>
-                        <form
-                            method="POST"
-                            action="?/delete"
-                            use:enhance={() => {
-                                return async ({ update }) => {
-                                    await update();
-                                };
-                            }}
-                        >
-                            <input type="hidden" name="id" value={challenge.id} />
-                            <button
-                                type="submit"
-                                class="mt-4 w-full rounded-full bg-red-500 px-4 py-2 text-white hover:bg-red-600"
-                            >
-                                Delete Challenge
-                            </button>
-                        </form>
-                    </div>
-                {/each}
-            </div>
+            <div class="flex w-full items-center justify-center py-16">
+                <ReadingChallenges challenges={filteredChallenges} />
+            </div>  
         {:else}
             <div class="flex w-full items-center justify-center py-16">
                 <p class="text-4xl text-gray-500">No Reading Challenges Set</p>

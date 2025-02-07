@@ -204,9 +204,6 @@
 			{/if}
 		</section>
 
-		<!-- Divider -->
-		<hr class="my-16 border-gray-300" />
-
 		<!-- Read Section -->
 		<section class="mx-8 mt-16 flex flex-col items-start px-4 md:mx-16 lg:mx-40">
 			<div class="mb-8 w-full text-left">

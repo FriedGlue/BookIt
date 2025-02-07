@@ -17,12 +17,14 @@ const (
 )
 
 type ChallengeProgress struct {
-	Current    int     `json:"current"`
-	Percentage float64 `json:"percentage"`
+	Current    int     `json:"current"`    // Total progress (pages or books read)
+	Percentage float64 `json:"percentage"` // Completion percentage (0-100)
 	Rate       struct {
-		Current  float64 `json:"current"`
-		Required float64 `json:"required"`
-		Unit     string  `json:"unit"`
+		Required     float64 `json:"required"`     // Target pace needed (pages/day, books/day, etc.)
+		CurrentPace  float64 `json:"currentPace"`  // Actual reading pace (pages/day, books/day, etc.)
+		ScheduleDiff float64 `json:"scheduleDiff"` // Cumulative difference between expected and actual progress
+		Unit         string  `json:"unit"`         // Unit for the pace (pages/day, books/month, etc.)
+		Status       string  `json:"status"`       // "AHEAD", "BEHIND", or "ON_TRACK"
 	} `json:"rate"`
 }
 

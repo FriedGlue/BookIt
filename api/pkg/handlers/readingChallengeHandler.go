@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"log"
+	"math"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -36,20 +37,33 @@ func CreateChallenge(request events.APIGatewayProxyRequest) events.APIGatewayPro
 	challenge.CreatedAt = time.Now()
 	challenge.UpdatedAt = time.Now()
 
-	// Calculate required rate and initialize progress
+	// Calculate required rate and initialize progress.
 	requiredRate, unit := calculateRequiredRate(challenge)
 	challenge.Progress = models.ChallengeProgress{
 		Current:    0,
 		Percentage: 0,
 		Rate: struct {
-			Current  float64 `json:"current"`
-			Required float64 `json:"required"`
-			Unit     string  `json:"unit"`
+			Required     float64 `json:"required"`
+			CurrentPace  float64 `json:"currentPace"`
+			ScheduleDiff float64 `json:"scheduleDiff"`
+			Unit         string  `json:"unit"`
+			Status       string  `json:"status"`
 		}{
-			Current:  0,
-			Required: requiredRate,
-			Unit:     unit,
+			Required:     requiredRate,
+			CurrentPace:  0,
+			ScheduleDiff: 0,
+			Unit:         unit,
+			// Default to ON_TRACK initially.
+			Status: "ON_TRACK",
 		},
+	}
+
+	// If the challenge start date is in the past and no progress has been made,
+	// update the schedule status accordingly.
+	if time.Now().After(challenge.StartDate) && challenge.Progress.Current == 0 {
+		scheduleDiff, status := calculateScheduleStatus(challenge)
+		challenge.Progress.Rate.ScheduleDiff = scheduleDiff
+		challenge.Progress.Rate.Status = status
 	}
 
 	// Fetch the user's profile from DynamoDB using the user ID (stored as "_id")
@@ -126,6 +140,93 @@ func GetChallenges(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 	return shared.SuccessResponse(200, profile.Challenges)
 }
 
+// calculateRequiredRate computes the required reading rate based on the challenge's timeframe.
+func calculateRequiredRate(challenge models.ReadingChallenge) (float64, string) {
+	duration := challenge.EndDate.Sub(challenge.StartDate)
+	var rate float64
+	var unit string
+
+	switch challenge.TimeFrame {
+	case models.YearTimeFrame:
+		monthsTotal := float64(duration.Hours()) / (24 * 30)
+		rate = math.Round(float64(challenge.Target)/monthsTotal*100) / 100
+		if challenge.Type == models.BooksChallenge {
+			unit = "books/month"
+		} else {
+			unit = "pages/month"
+		}
+	case models.MonthTimeFrame:
+		weeksTotal := float64(duration.Hours()) / (24 * 7)
+		rate = math.Round(float64(challenge.Target)/weeksTotal*100) / 100
+		if challenge.Type == models.BooksChallenge {
+			unit = "books/week"
+		} else {
+			unit = "pages/week"
+		}
+	case models.WeekTimeFrame:
+		daysTotal := float64(duration.Hours()) / 24
+		rate = math.Round(float64(challenge.Target)/daysTotal*100) / 100
+		if challenge.Type == models.BooksChallenge {
+			unit = "books/day"
+		} else {
+			unit = "pages/day"
+		}
+	}
+
+	return rate, unit
+}
+
+// calculateCurrentPace computes the actual reading pace
+func calculateCurrentPace(challenge models.ReadingChallenge) float64 {
+	duration := time.Now().Sub(challenge.StartDate)
+	var divisor float64
+
+	switch challenge.TimeFrame {
+	case models.YearTimeFrame:
+		divisor = float64(duration.Hours()) / (24 * 30) // months
+	case models.MonthTimeFrame:
+		divisor = float64(duration.Hours()) / (24 * 7) // weeks
+	case models.WeekTimeFrame:
+		divisor = float64(duration.Hours()) / 24 // days
+	}
+
+	if divisor == 0 {
+		return 0
+	}
+
+	return math.Round(float64(challenge.Progress.Current)/divisor*100) / 100
+}
+
+// calculateScheduleStatus determines if ahead/behind and by how much.
+func calculateScheduleStatus(challenge models.ReadingChallenge) (float64, string) {
+	duration := time.Now().Sub(challenge.StartDate)
+	totalDuration := challenge.EndDate.Sub(challenge.StartDate)
+
+	// Calculate expected progress at this point.
+	expectedProgress := float64(challenge.Target) * (float64(duration) / float64(totalDuration))
+	actualProgress := float64(challenge.Progress.Current)
+
+	// If no progress and at least one minute has elapsed since the challenge started,
+	// mark the challenge as behind schedule.
+	if actualProgress == 0 && time.Since(challenge.StartDate) > time.Minute {
+		return expectedProgress, "BEHIND"
+	}
+
+	// Calculate the progress difference.
+	progressDiff := actualProgress - expectedProgress
+
+	// If the difference is negligible, consider it on track.
+	if math.Abs(progressDiff) < 0.01 {
+		return 0, "ON_TRACK"
+	}
+
+	// Return the absolute difference and status.
+	if progressDiff > 0 {
+		return progressDiff, "AHEAD"
+	}
+	return math.Abs(progressDiff), "BEHIND"
+}
+
 // UpdateChallenge updates a specific reading challenge within the profile.
 func UpdateChallenge(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
 	log.Println("UpdateChallenge invoked")
@@ -173,7 +274,16 @@ func UpdateChallenge(request events.APIGatewayProxyRequest) events.APIGatewayPro
 			if profile.Challenges[i].Target != 0 {
 				profile.Challenges[i].Progress.Percentage = float64(updateData.Current) / float64(profile.Challenges[i].Target) * 100
 			}
-			profile.Challenges[i].Progress.Rate.Current = calculateCurrentRate(profile.Challenges[i])
+
+			// Calculate and update current reading pace
+			profile.Challenges[i].Progress.Rate.CurrentPace = calculateCurrentPace(profile.Challenges[i])
+
+			// Calculate cumulative schedule difference and status,
+			// then store in the new ScheduleDiff field.
+			scheduleDiff, status := calculateScheduleStatus(profile.Challenges[i])
+			profile.Challenges[i].Progress.Rate.ScheduleDiff = scheduleDiff
+			profile.Challenges[i].Progress.Rate.Status = status
+
 			profile.Challenges[i].UpdatedAt = time.Now()
 			found = true
 			break
@@ -259,60 +369,4 @@ func DeleteChallenge(request events.APIGatewayProxyRequest) events.APIGatewayPro
 	}
 
 	return shared.SuccessResponse(200, map[string]string{"message": "Challenge deleted successfully"})
-}
-
-// calculateRequiredRate computes the required reading rate based on the challenge's timeframe.
-func calculateRequiredRate(challenge models.ReadingChallenge) (float64, string) {
-	duration := challenge.EndDate.Sub(challenge.StartDate)
-	var rate float64
-	var unit string
-
-	switch challenge.TimeFrame {
-	case models.YearTimeFrame:
-		monthsTotal := float64(duration.Hours()) / (24 * 30)
-		rate = float64(challenge.Target) / monthsTotal
-		if challenge.Type == models.BooksChallenge {
-			unit = "books/month"
-		} else {
-			unit = "pages/month"
-		}
-	case models.MonthTimeFrame:
-		weeksTotal := float64(duration.Hours()) / (24 * 7)
-		rate = float64(challenge.Target) / weeksTotal
-		if challenge.Type == models.BooksChallenge {
-			unit = "books/week"
-		} else {
-			unit = "pages/week"
-		}
-	case models.WeekTimeFrame:
-		daysTotal := float64(duration.Hours()) / 24
-		rate = float64(challenge.Target) / daysTotal
-		if challenge.Type == models.BooksChallenge {
-			unit = "books/day"
-		} else {
-			unit = "pages/day"
-		}
-	}
-
-	return rate, unit
-}
-
-// calculateCurrentRate computes the current reading rate based on progress so far.
-func calculateCurrentRate(challenge models.ReadingChallenge) float64 {
-	duration := time.Now().Sub(challenge.StartDate)
-	var divisor float64
-
-	switch challenge.TimeFrame {
-	case models.YearTimeFrame:
-		divisor = float64(duration.Hours()) / (24 * 30) // months
-	case models.MonthTimeFrame:
-		divisor = float64(duration.Hours()) / (24 * 7) // weeks
-	case models.WeekTimeFrame:
-		divisor = float64(duration.Hours()) / 24 // days
-	}
-
-	if divisor == 0 {
-		return 0
-	}
-	return float64(challenge.Progress.Current) / divisor
 }

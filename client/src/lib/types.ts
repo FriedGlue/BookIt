@@ -83,14 +83,32 @@ export interface DecodedToken {
 	email: string;
 }
 
-export interface ChallengeProgress {
+interface Progress {
 	current: number;
 	percentage: number;
-	rate: {
-		current: number;
-		required: number;
-		unit: string;
-	};
+	rate: Rate;
+}
+
+interface Rate {
+	current: number;
+	required: number;
+	currentPace: number;
+	unit: string;
+	status: 'AHEAD' | 'BEHIND' | 'ON_TRACK';
+}
+
+interface Rate {
+	required: number;
+	currentPace: number;
+	scheduleDiff: number;
+	unit: string;
+	status: 'AHEAD' | 'BEHIND' | 'ON_TRACK';
+}
+
+interface Progress {
+	current: number;
+	percentage: number;
+	rate: Rate;
 }
 
 export interface ReadingChallenge {
@@ -102,7 +120,7 @@ export interface ReadingChallenge {
 	startDate: string;
 	endDate: string;
 	target: number;
-	progress: ChallengeProgress;
+	progress: Progress;
 	createdAt: string;
 	updatedAt: string;
 }
