@@ -31,7 +31,6 @@ export class AuthService {
 				idToken: data.IdToken,
 				refreshToken: data.RefreshToken
 			}),
-			credentials: 'include'
 		});
 
 		if (!setCookiesResponse.ok) {
@@ -67,7 +66,6 @@ export class AuthService {
 		if (!PUBLIC_API_BASE_URL.includes('amazonaws')) {
 			fetch(`${PUBLIC_API_BASE_URL}/auth/signout`, {
 				method: 'POST',
-				credentials: 'include'
 			}).catch(console.error);
 		}
 
@@ -77,7 +75,6 @@ export class AuthService {
 	async isAuthenticated(): Promise<boolean> {
 		const response = await fetch(`/api/isAuthenticated`, {
 			method: 'GET',
-			credentials: 'include'
 		});
 
 		if (!response.ok) {
@@ -126,7 +123,6 @@ export class AuthService {
 	async getToken(): Promise<string> {
 		const response = await fetch('/api/getToken', {
 			method: 'GET',
-			credentials: 'include'
 		});
 		return response.text();
 	}

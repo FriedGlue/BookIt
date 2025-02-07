@@ -11,7 +11,6 @@ export async function GET({ cookies }: { cookies: Cookies }) {
 
 	const response = await fetch(`${PUBLIC_API_BASE_URL}/profile`, {
 		method: 'GET',
-		credentials: 'include',
 		headers: {
 			'Content-Type': 'application/json',
 			Authorization: `Bearer ${token}`
