@@ -16,6 +16,14 @@ Globals:
 
 Resources:
   #####################################
+  # SNS Topic: "UserEventsTopic"
+  #####################################
+  UserEventsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub UserEvents-${StageName}
+
+  #####################################
   # API Gateway: "BookItApi"  
   #####################################
   BookItApi:
@@ -252,6 +260,15 @@ Resources:
         Variables:
           USER_POOL_ID: !Ref BookItUserPool
           USER_POOL_CLIENT_ID: !Ref BookItUserPoolClient
+          USER_EVENTS_TOPIC_ARN: !Ref UserEventsTopic
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt UserEventsTopic.TopicName
+        - Statement:
+            Effect: Allow
+            Action:
+              - cognito-idp:AdminGetUser
+            Resource: !GetAtt BookItUserPool.Arn
 
       # For these auth endpoints, override the default authorizer to "NONE"
       Events:
@@ -298,6 +315,31 @@ Resources:
             RestApiId: !Ref BookItApi
             Auth:
               Authorizer: NONE
+
+  #####################################
+  # Lambda Function: "ProfileCreator"
+  #####################################
+  ProfileCreatorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ProfileCreator-${StageName}
+      Runtime: provided.al2
+      Handler: bootstrap
+      CodeUri: cmd/profile-creator/bootstrap
+      PackageType: Zip
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          PROFILES_TABLE_NAME: !Ref ProfilesTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProfilesTable
+      Events:
+        SNSEvent:
+          Type: SNS
+          Properties:
+            Topic: !Ref UserEventsTopic
 
 Outputs:
   ApiUrl:

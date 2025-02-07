@@ -3,6 +3,7 @@ package auth
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
+	"github.com/aws/aws-sdk-go/service/sns"
 )
 
 // We'll read these from environment variables or
@@ -24,6 +26,11 @@ var (
 func newCognitoClient() *cognitoidentityprovider.CognitoIdentityProvider {
 	sess := session.Must(session.NewSession())
 	return cognitoidentityprovider.New(sess)
+}
+
+func newSNSClient() *sns.SNS {
+	sess := session.Must(session.NewSession())
+	return sns.New(sess)
 }
 
 // ----------------- Sign Up Logic -----------------
@@ -102,9 +109,89 @@ func HandleConfirmSignUp(request events.APIGatewayProxyRequest) events.APIGatewa
 		return shared.ErrorResponse(500, fmt.Sprintf("ConfirmSignUp error: %v", err))
 	}
 
+	// Get the user's sub from Cognito
+	userInfo, err := cip.AdminGetUser(&cognitoidentityprovider.AdminGetUserInput{
+		UserPoolId: aws.String(userPoolID),
+		Username:   aws.String(payload.Username),
+	})
+	if err != nil {
+		log.Printf("Error getting user info: %v", err)
+		return shared.ErrorResponse(500, fmt.Sprintf("Error getting user info: %v", err))
+	}
+
+	var sub string
+	for _, attr := range userInfo.UserAttributes {
+		if *attr.Name == "sub" {
+			sub = *attr.Value
+			break
+		}
+	}
+
+	if sub == "" {
+		log.Printf("User sub not found")
+		return shared.ErrorResponse(500, "User sub not found")
+	}
+
+	// Send a message to the service bus to create a new user profile
+	svc := newSNSClient()
+	message := map[string]string{
+		"action":   "CREATE_USER_PROFILE",
+		"username": payload.Username,
+		"sub":      sub,
+	}
+
+	messageJSON, err := json.Marshal(message)
+	if err != nil {
+		log.Printf("Error marshalling SNS message: %v", err)
+		// Don't return error to client since confirmation was successful
+	} else {
+		_, err = svc.Publish(&sns.PublishInput{
+			TopicArn: aws.String(os.Getenv("USER_EVENTS_TOPIC_ARN")),
+			Message:  aws.String(string(messageJSON)),
+		})
+		if err != nil {
+			log.Printf("Error publishing to SNS: %v", err)
+			// Don't return error to client since confirmation was successful
+		}
+	}
+
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
 		Body:       fmt.Sprintf("User '%s' confirmed successfully.", payload.Username),
+	}
+}
+
+// ----------------- Resend Confirmation Code Logic -----------------
+//
+// POST /auth/resend-confirmation-code
+// Request body (JSON): { "username":"..." }
+//
+
+func HandleResendConfirmationCode(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	var payload struct {
+		Username string `json:"username"`
+	}
+	if err := json.Unmarshal([]byte(request.Body), &payload); err != nil {
+		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
+	}
+	if payload.Username == "" {
+		return shared.ErrorResponse(400, "username is required")
+	}
+
+	cip := newCognitoClient()
+	input := &cognitoidentityprovider.ResendConfirmationCodeInput{
+		ClientId: aws.String(userPoolClientID),
+		Username: aws.String(payload.Username),
+	}
+
+	_, err := cip.ResendConfirmationCode(input)
+	if err != nil {
+		return shared.ErrorResponse(500, fmt.Sprintf("ResendConfirmationCode error: %v", err))
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       fmt.Sprintf("Confirmation code resent to '%s'.", payload.Username),
 	}
 }
 

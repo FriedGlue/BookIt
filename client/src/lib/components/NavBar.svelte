@@ -12,18 +12,19 @@
 	let isAddingToList = false;
 	let toBeReadList: any[] = [];
 	let isNavigating = false;
+	let isAuthLoading = true;
 
 	const authService = new AuthService();
 
 	onMount(async () => {
 		try {
 			const isAuth = await authService.isAuthenticated();
-			if (!isAuth) {
-				isAuthenticated.set(false);
-			}
+			isAuthenticated.set(isAuth);
 		} catch (error) {
 			console.error('Error checking authentication:', error);
 			isAuthenticated.set(false);
+		} finally {
+			isAuthLoading = false;
 		}
 	});
 
@@ -153,26 +154,34 @@
 		</div>
 
 		<div class="flex items-center space-x-4">
-			{#if $isAuthenticated}
-				<button
-					on:click={handleLogout}
-					class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
-				>
-					Log Out
-				</button>
+			{#if !isAuthLoading}
+				{#if $isAuthenticated}
+					<button
+						on:click={handleLogout}
+						class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
+					>
+						Log Out
+					</button>
+				{:else}
+					<a
+						href="/login"
+						class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
+					>
+						Sign In
+					</a>
+					<a
+						href="/signup"
+						class="inline-block rounded-full border-2 border-blue-500 bg-blue-500 px-4 py-2 text-lg font-semibold text-white"
+					>
+						Sign Up
+					</a>
+				{/if}
 			{:else}
-				<a
-					href="/login"
-					class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500"
-				>
-					Sign In
-				</a>
-				<a
-					href="/signup"
-					class="inline-block rounded-full border-2 border-blue-500 bg-blue-500 px-4 py-2 text-lg font-semibold text-white"
-				>
-					Sign Up
-				</a>
+				<div class="invisible flex items-center space-x-4">
+					<div class="inline-block rounded-full border-2 border-blue-500 bg-white px-4 py-2 text-lg font-semibold text-blue-500">
+						Log Out	
+					</div>
+				</div>
 			{/if}
 		</div>
 	</div>

@@ -14,7 +14,7 @@
 	// In case the API returns an empty array
 	$: readingLog = data.readingLog ?? [];
 
-	const options = ['Calendar', 'List'];
+	const options = ['Calendar', 'Charts & Graphs', 'List', ];
 	let selectedList = 'Calendar';
 
 	// Helper function to generate calendar days

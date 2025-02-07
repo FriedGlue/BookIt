@@ -10,13 +10,52 @@ export const load: PageServerLoad = async ({ fetch }) => {
 		const response = await fetch('/api/profile');
 
 		if (!response.ok) {
-			return { profile: null };
+			return { 
+				profile: {
+					currentlyReading: [],
+					challenges: [],
+					lists: {
+						toBeRead: [],
+						read: [],
+						customLists: {}
+					}
+				} 
+			};
 		}
 
 		profile = await response.json();
 
-		// Load reading challenges
+		// Ensure lists are initialized
 		if (profile) {
+			if (!profile.lists) {
+				profile.lists = {
+					toBeRead: [],
+					read: [],
+					customLists: {}
+				};
+			}
+
+			if (!profile.lists.toBeRead) {
+				profile.lists.toBeRead = [];
+			}
+
+			if (!profile.lists.read) {
+				profile.lists.read = [];
+			}
+
+			if (!profile.lists.customLists) {
+				profile.lists.customLists = {};
+			}
+
+			if (!profile.currentlyReading) {
+				profile.currentlyReading = [];
+			}
+
+			if (!profile.challenges) {
+				profile.challenges = [];
+			}
+
+			// Load reading challenges
 			try {
 				const challenges = profile.challenges;
 				if (challenges && challenges.length > 0) {
@@ -30,7 +69,17 @@ export const load: PageServerLoad = async ({ fetch }) => {
 		return { profile };
 	} catch (error) {
 		console.error('Error loading profile:', error);
-		return { profile: null };
+		return { 
+			profile: {
+				currentlyReading: [],
+				challenges: [],
+				lists: {
+					toBeRead: [],
+					read: [],
+					customLists: {}
+				}
+			} 
+		};
 	}
 };
 

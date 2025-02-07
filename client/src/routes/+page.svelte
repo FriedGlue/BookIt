@@ -37,7 +37,7 @@
 		<section class="mx-8 mt-16 flex flex-col items-start px-4 md:mx-16 lg:mx-40">
 			{#if !data.profile || !data.profile.currentlyReading || data.profile.currentlyReading.length === 0}
 				<div class="flex w-full items-center justify-center py-16">
-					<p class="text-4xl text-gray-500">Nothing... Get To Reading!</p>
+					<p class="text-4xl text-gray-500">No Books In Progress... Get To Reading!</p>
 				</div>
 			{:else}
 				<div class="grid w-full grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -125,18 +125,22 @@
 		<hr class="my-8 border-gray-300" />
 
 		<!-- To Be Read Section -->
-		{#if data.profile && data.profile.lists && data.profile.lists.toBeRead}
-			<section class="mx-8 mt-16 flex flex-col items-start py-4 md:mx-16 lg:mx-40">
-				<div class="mb-8 w-full text-left">
-					<h1 class="text-4xl font-bold text-gray-600 md:text-5xl lg:text-4xl">
-						To Be Read ({data.profile.lists.toBeRead.length})
-					</h1>
-					<a
-						href="/lists?list=To Be Read"
-						class="mt-2 text-lg font-semibold text-blue-500 hover:text-blue-700">View All</a
-					>
-				</div>
+		<section class="mx-8 mt-16 flex flex-col items-start py-4 md:mx-16 lg:mx-40">
+			<div class="mb-8 w-full text-left">
+				<h1 class="text-4xl font-bold text-gray-600 md:text-5xl lg:text-4xl">
+					To Be Read ({data.profile?.lists?.toBeRead?.length ?? 0})
+				</h1>
+				<a
+					href="/lists?list=To Be Read"
+					class="mt-2 text-lg font-semibold text-blue-500 hover:text-blue-700">View All</a
+				>
+			</div>
 
+			{#if !data.profile?.lists?.toBeRead?.length}
+				<div class="flex w-full items-center justify-center py-16">
+					<p class="text-2xl text-gray-500">Add a book via search to see it in your list</p>
+				</div>
+			{:else}
 				<!-- Grid Container -->
 				<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
 					{#each (data.profile.lists.toBeRead.slice(0, 4) || []).reverse() as book}
@@ -197,30 +201,33 @@
 						<div class="flex items-center justify-center text-6xl text-gray-600">...</div>
 					{/if}
 				</div>
-			</section>
-		{/if}
+			{/if}
+		</section>
 
 		<!-- Divider -->
 		<hr class="my-16 border-gray-300" />
 
-		<!-- Read Section (if available) -->
-		{#if data.profile && data.profile.lists && data.profile.lists.read}
-			<section class="mx-8 mt-16 flex flex-col items-start px-4 md:mx-16 lg:mx-40">
-				<div class="mb-8 w-full text-left">
-					<h1 class="text-4xl font-bold text-gray-600 md:text-5xl lg:text-4xl">
-						Read ({data.profile.lists.read.length})
-					</h1>
-					<a
-						href="/lists?list=Read"
-						class="mt-2 text-lg font-semibold text-blue-500 hover:text-blue-700">View All</a
-					>
-				</div>
+		<!-- Read Section -->
+		<section class="mx-8 mt-16 flex flex-col items-start px-4 md:mx-16 lg:mx-40">
+			<div class="mb-8 w-full text-left">
+				<h1 class="text-4xl font-bold text-gray-600 md:text-5xl lg:text-4xl">
+					Read ({data.profile?.lists?.read?.length ?? 0})
+				</h1>
+				<a
+					href="/lists?list=Read"
+					class="mt-2 text-lg font-semibold text-blue-500 hover:text-blue-700">View All</a
+				>
+			</div>
 
+			{#if !data.profile?.lists?.read?.length}
+				<div class="flex w-full items-center justify-center py-16">
+					<p class="text-2xl text-gray-500">Add a book via search to see it in your list</p>
+				</div>
+			{:else}
 				<!-- Grid Container -->
 				<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
 					{#each (data.profile.lists.read.slice(0, 4) || []).reverse() as book}
 						<div class="flex flex-col">
-							<!-- Similar markup as the "To Be Read" section -->
 							<div
 								class="group relative w-full transform rounded-lg bg-gray-300 transition-shadow duration-300 hover:scale-105 hover:shadow-2xl"
 							>
@@ -275,8 +282,8 @@
 						<div class="flex items-center justify-center text-6xl text-gray-600">...</div>
 					{/if}
 				</div>
-			</section>
-		{/if}
+			{/if}
+		</section>
 
 		<!-- Divider -->
 		<hr class="my-16 border-gray-300" />

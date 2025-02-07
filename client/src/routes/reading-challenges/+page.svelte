@@ -27,6 +27,7 @@
 	let target = '';
 	let startDate = new Date().toISOString().split('T')[0];
 	let endDate = '';
+    let selectedSuggestion: string | null = null;
 
 	$: {
 		// Set a default end date based on timeframe
@@ -52,7 +53,80 @@
 		showCreateForm = false;
 		challengeName = '';
 		target = '';
+		selectedSuggestion = null;
 	}
+
+    // Helper function to check if a challenge type exists
+    function hasExistingChallenge(type: 'YEAR' | 'MONTH' | 'WEEK'): boolean {
+        return data.profile?.challenges?.some(challenge => {
+            const start = new Date(challenge.startDate);
+            const end = new Date(challenge.endDate);
+            const duration = end.getTime() - start.getTime();
+            const days = duration / (1000 * 60 * 60 * 24);
+            
+            switch(type) {
+                case 'YEAR':
+                    return days >= 360; // Approximately a year
+                case 'MONTH':
+                    return days >= 28 && days <= 31; // Approximately a month
+                case 'WEEK':
+                    return days <= 7 && challenge.type === 'PAGES'; // Weekly page challenge
+                default:
+                    return false;
+            }
+        }) ?? false;
+    }
+
+    function getSuggestions() {
+        const suggestions = [];
+        const currentDate = new Date();
+        const nextYear = currentDate.getFullYear() + 1;
+        const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
+        
+        if (!hasExistingChallenge('YEAR')) {
+            suggestions.push({
+                name: `${nextYear} Reading Challenge`,
+                type: 'BOOKS',
+                timeframe: 'YEAR',
+                target: '52',
+                startDate: `${nextYear}-01-01`,
+                description: `Read 52 books in ${nextYear}`
+            });
+        }
+        
+        if (!hasExistingChallenge('MONTH')) {
+            suggestions.push({
+                name: `${currentMonth} Reading Challenge`,
+                type: 'BOOKS',
+                timeframe: 'MONTH',
+                target: '4',
+                startDate: currentDate.toISOString().split('T')[0],
+                description: `Read 4 books this month`
+            });
+        }
+        
+        if (!hasExistingChallenge('WEEK')) {
+            suggestions.push({
+                name: 'Weekly Page Challenge',
+                type: 'PAGES',
+                timeframe: 'WEEK',
+                target: '500',
+                startDate: currentDate.toISOString().split('T')[0],
+                description: 'Read 500 pages this week'
+            });
+        }
+        
+        return suggestions;
+    }
+
+    function applySuggestion(suggestion: any) {
+        selectedSuggestion = suggestion.name;
+        challengeName = suggestion.name;
+        challengeType = suggestion.type;
+        timeframe = suggestion.timeframe;
+        target = suggestion.target;
+        startDate = suggestion.startDate;
+    }
 </script>
 
 <div class="flex min-h-screen">
@@ -115,8 +189,36 @@
     <!-- Create Challenge Modal -->
     {#if showCreateForm}
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div class="w-full max-w-md rounded-lg bg-white p-8">
+            <div class="w-full max-w-2xl rounded-lg bg-white p-8">
                 <h2 class="mb-6 text-2xl font-bold">Create Reading Challenge</h2>
+
+                <!-- Suggestions Section -->
+                {#if getSuggestions().length > 0}
+                    <div class="mb-8">
+                        <h3 class="mb-4 text-lg font-semibold text-gray-700">Suggestions</h3>
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                            {#each getSuggestions() as suggestion}
+                                <button
+                                    class="group relative flex flex-col rounded-lg border-2 p-4 text-left transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg
+                                        {selectedSuggestion === suggestion.name 
+                                            ? 'border-blue-500 bg-blue-50 shadow-md' 
+                                            : 'border-blue-200 hover:border-blue-400 hover:bg-blue-50'}"
+                                    on:click={() => applySuggestion(suggestion)}
+                                >
+                                    <div class="flex items-center justify-between">
+                                        <h4 class="font-semibold {selectedSuggestion === suggestion.name ? 'text-blue-600' : 'text-blue-500'}">{suggestion.name}</h4>
+                                        {#if selectedSuggestion === suggestion.name}
+                                            <svg class="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                                            </svg>
+                                        {/if}
+                                    </div>
+                                    <p class="mt-2 text-sm text-gray-600">{suggestion.description}</p>
+                                </button>
+                            {/each}
+                        </div>
+                    </div>
+                {/if}
 
                 <form
                     method="POST"
