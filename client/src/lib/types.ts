@@ -7,16 +7,12 @@ export interface ReadingProgress {
 
 export interface Book {
 	bookId: string;
-	isbn13?: string;
+	isbn?: string;
 	title?: string;
-	titleLowercase?: string;
 	authors?: string[];
-	pageCount?: number;
 	thumbnail?: string;
-	tags?: string[];
-	progress?: ReadingProgress;
-	_listType?: string;
 	totalPages: number;
+	progress?: ReadingProgress;
 }
 
 export interface CurrentlyReadingItem {
@@ -31,70 +27,60 @@ export interface Profile {
 		email?: string;
 	};
 	currentlyReading: CurrentlyReadingItem[];
-	lists?: {
-		toBeRead?: ToBeReadItem[];
-		read?: ReadItem[];
-		customLists?: Record<string, DisplayBook[]>;
-	};
+	bookshelves?: UserBookshelves;
+	readingLog?: ReadingLogItem[];
 	challenges?: ReadingChallenge[];
 }
 
-export interface DisplayBook {
-	title: string;
-	author: string;
-	bookId: string;
-	thumbnail: string;
-	progress: number;
-	totalPages: number;
-	currentPage: number;
-	lastUpdated: string;
+export interface UserBookshelves {
+	toBeRead?: ToBeReadBook[];
+	read?: ReadBook[];
+	customShelves?: Record<string, CustomShelfBook[]>;
 }
 
-export interface ToBeReadItem {
+export interface ToBeReadBook {
 	bookId: string;
 	thumbnail?: string;
 	addedDate?: string;
 	order?: number;
+	title?: string;
+	authors?: string[];
 }
 
-export interface ReadItem {
+export interface ReadBook {
 	bookId: string;
+	thumbnail?: string;
 	completedDate?: string;
 	rating?: number;
 	order?: number;
 	review?: string;
+	title?: string;
+	authors?: string[];
+}
+
+export interface CustomShelfBook {
+	bookId: string;
 	thumbnail?: string;
+	addedDate?: string;
+	order?: number;
 	title?: string;
 	authors?: string[];
 }
 
 export interface ReadingLogItem {
 	_id: string;
-	date: string;
 	bookId: string;
-	bookThumbnail: string;
-	pagesRead: number;
-	notes: string;
+	title: string;
+	date: string;
+	bookThumbnail?: string;
+	pagesRead?: number;
+	notes?: string;
 }
 
 export interface DecodedToken {
 	exp: number;
 	sub: string;
 	email: string;
-}
-
-interface Progress {
-	current: number;
-	percentage: number;
-	rate: Rate;
-}
-
-interface Rate {
-	current: number;
-	required: number;
-	currentPace: number;
-	unit: string;
-	status: 'AHEAD' | 'BEHIND' | 'ON_TRACK';
 }
 
 interface Rate {

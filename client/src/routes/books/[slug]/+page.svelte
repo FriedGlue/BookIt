@@ -13,7 +13,7 @@
 			headers: {
 				'Content-Type': 'application/json'
 			},
-			body: JSON.stringify({ bookId: book?.bookId, listType: 'toBeRead' })
+			body: JSON.stringify({ bookId: book?.bookId, shelfName: 'toBeRead' })
 		});
 		if (!response.ok) {
 			throw new Error('Failed to add book to list');

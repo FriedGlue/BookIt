@@ -154,15 +154,15 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const bookId = formData.get('bookId')?.toString();
-		const listType = formData.get('listType')?.toString();
+		const shelfName = formData.get('shelfName')?.toString();
 
-		if (!bookId || !listType) {
+		if (!bookId || !shelfName) {
 			return { error: 'Missing form data' };
 		}
 
 		try {
 			const bookService = new BookService(token);
-			await bookService.removeFromList(bookId, listType);
+			await bookService.removeFromShelf(bookId, shelfName);
 			return { success: true };
 		} catch (err) {
 			throw Error('Failed to remove from list', { cause: err });

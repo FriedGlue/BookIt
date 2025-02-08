@@ -10,13 +10,13 @@ export const POST: RequestHandler = async ({ request, cookies, fetch }) => {
 	}
 
 	try {
-		const { bookId, listType } = await request.json();
+		const { bookId, shelfName } = await request.json();
 
-		if (!bookId || !listType) {
-			return new Response('Missing bookId or listType', { status: 400 });
+		if (!bookId || !shelfName) {
+			return new Response('Missing bookId or shelfName', { status: 400 });
 		}
 
-		const response = await fetch(`${PUBLIC_API_BASE_URL}/list`, {
+		const response = await fetch(`${PUBLIC_API_BASE_URL}/bookshelf`, {
 			method: 'POST',
 			headers: {
 				Authorization: `Bearer ${token}`,
@@ -24,7 +24,7 @@ export const POST: RequestHandler = async ({ request, cookies, fetch }) => {
 			},
 			body: JSON.stringify({
 				bookId,
-				listType
+				shelfName
 			})
 		});
 

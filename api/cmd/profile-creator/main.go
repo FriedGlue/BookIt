@@ -42,14 +42,14 @@ func handleRequest(ctx context.Context, snsEvent events.SNSEvent) error {
 			ProfileInformation: models.ProfileInformation{
 				Username: userEvent.Username,
 			},
-			CurrentlyReading: []models.CurrentlyReadingItem{},
-			Lists: models.UserLists{
-				ToBeRead:    []models.ToBeReadItem{},
-				Read:        []models.ReadItem{},
-				CustomLists: make(map[string][]models.CustomListItem),
+			Bookshelves: models.UserBookshelves{
+				ToBeRead:      []models.ToBeReadBook{},
+				Read:          []models.ReadBook{},
+				CustomShelves: make(map[string][]models.CustomShelfBook),
 			},
-			ReadingLog: []models.ReadingLogItem{},
-			Challenges: []models.ReadingChallenge{},
+			CurrentlyReading: []models.CurrentlyReadingItem{},
+			ReadingLog:       []models.ReadingLogItem{},
+			Challenges:       []models.ReadingChallenge{},
 		}
 
 		// Marshal the profile to DynamoDB format

@@ -184,7 +184,7 @@
 									<!-- "Remove" from list form -->
 									<form method="post" action="?/removeFromList" class="w-3/4" use:enhance>
 										<input type="hidden" name="bookId" value={book.bookId} />
-										<input type="hidden" name="listType" value="toBeRead" />
+										<input type="hidden" name="shelfName" value="toBeRead" />
 										<button
 											type="submit"
 											class="h-8 w-full rounded-full bg-white text-gray-800 transition-all duration-200 hover:bg-blue-500 hover:text-white"
@@ -262,7 +262,7 @@
 
 									<form method="post" action="?/removeFromList" class="w-3/4" use:enhance>
 										<input type="hidden" name="bookId" value={book.bookId} />
-										<input type="hidden" name="listType" value="read" />
+										<input type="hidden" name="shelfName" value="read" />
 										<button
 											type="submit"
 											class="h-8 w-full rounded-full bg-white text-gray-800 transition-all duration-200 hover:bg-blue-500 hover:text-white"

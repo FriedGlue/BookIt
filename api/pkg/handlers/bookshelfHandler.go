@@ -15,32 +15,32 @@ import (
 )
 
 // Request structs
-type AddToListRequest struct {
-	ListType  string `json:"listType"` // "toBeRead", "read", or custom list name
+type AddToBookshelfRequest struct {
+	ShelfType string `json:"shelfType"` // "toBeRead", "read", or custom shelf name
 	BookID    string `json:"bookId"`
-	Rating    int    `json:"rating,omitempty"`    // Only for read list
-	Review    string `json:"review,omitempty"`    // Only for read list
-	Thumbnail string `json:"thumbnail,omitempty"` // For toBeRead and custom lists
+	Rating    int    `json:"rating,omitempty"`    // Only for read shelf
+	Review    string `json:"review,omitempty"`    // Only for read shelf
+	Thumbnail string `json:"thumbnail,omitempty"` // For toBeRead and custom shelves
 }
 
-type UpdateListItemRequest struct {
-	ListType string `json:"listType"`
-	BookID   string `json:"bookId"`
-	Rating   int    `json:"rating,omitempty"`
-	Review   string `json:"review,omitempty"`
-	Order    int    `json:"order,omitempty"`
+type UpdateBookshelfItemRequest struct {
+	ShelfType string `json:"shelfType"`
+	BookID    string `json:"bookId"`
+	Rating    int    `json:"rating,omitempty"`
+	Review    string `json:"review,omitempty"`
+	Order     int    `json:"order,omitempty"`
 }
 
-// GetList retrieves specific lists (toBeRead, read, or custom) from the Profile, or all lists if no type is provided
-func GetList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
-	log.Println("GetList invoked")
+// GetBookshelf retrieves specific bookshelves (toBeRead, read, or custom) from the Profile, or all shelves if no type is provided
+func GetBookshelf(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	log.Println("GetBookshelf invoked")
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
 		return shared.ErrorResponse(401, err.Error())
 	}
 
-	listType := request.QueryStringParameters["listType"]
+	shelfType := request.QueryStringParameters["shelfType"]
 
 	svc := shared.DynamoDBClient()
 	input := &dynamodb.GetItemInput{
@@ -66,29 +66,29 @@ func GetList(request events.APIGatewayProxyRequest) events.APIGatewayProxyRespon
 	}
 
 	var responseBody []byte
-	if listType == "" {
-		// If no listType is provided, return all lists
-		allLists := struct {
-			ToBeRead []models.ToBeReadItem              `json:"toBeRead"`
-			Read     []models.ReadItem                  `json:"read"`
-			Custom   map[string][]models.CustomListItem `json:"customLists"`
+	if shelfType == "" {
+		// If no shelfType is provided, return all shelves
+		allShelves := struct {
+			ToBeRead      []models.ToBeReadBook               `json:"toBeRead"`
+			Read          []models.ReadBook                   `json:"read"`
+			CustomShelves map[string][]models.CustomShelfBook `json:"customShelves"`
 		}{
-			ToBeRead: profile.Lists.ToBeRead,
-			Read:     profile.Lists.Read,
-			Custom:   profile.Lists.CustomLists,
+			ToBeRead:      profile.Bookshelves.ToBeRead,
+			Read:          profile.Bookshelves.Read,
+			CustomShelves: profile.Bookshelves.CustomShelves,
 		}
-		responseBody, err = json.Marshal(allLists)
+		responseBody, err = json.Marshal(allShelves)
 	} else {
-		switch listType {
+		switch shelfType {
 		case "toBeRead":
-			responseBody, err = json.Marshal(profile.Lists.ToBeRead)
+			responseBody, err = json.Marshal(profile.Bookshelves.ToBeRead)
 		case "read":
-			responseBody, err = json.Marshal(profile.Lists.Read)
+			responseBody, err = json.Marshal(profile.Bookshelves.Read)
 		default:
-			if customList, exists := profile.Lists.CustomLists[listType]; exists {
-				responseBody, err = json.Marshal(customList)
+			if customShelf, exists := profile.Bookshelves.CustomShelves[shelfType]; exists {
+				responseBody, err = json.Marshal(customShelf)
 			} else {
-				return shared.ErrorResponse(404, "List not found")
+				return shared.ErrorResponse(404, "Shelf not found")
 			}
 		}
 	}
@@ -104,16 +104,16 @@ func GetList(request events.APIGatewayProxyRequest) events.APIGatewayProxyRespon
 	}
 }
 
-// AddToList adds a book to a specific list (toBeRead, read, or custom)
-func AddToList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
-	log.Println("AddToList invoked")
+// AddToBookshelf adds a book to a specific shelf (toBeRead, read, or custom)
+func AddToBookshelf(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	log.Println("AddToBookshelf invoked")
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
 		return shared.ErrorResponse(401, err.Error())
 	}
 
-	var addReq AddToListRequest
+	var addReq AddToBookshelfRequest
 	if err := json.Unmarshal([]byte(request.Body), &addReq); err != nil {
 		log.Printf("Invalid JSON: %v\n", err)
 		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
@@ -169,19 +169,19 @@ func AddToList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResp
 
 	currentTime := time.Now().Format(time.RFC3339)
 
-	switch addReq.ListType {
+	switch addReq.ShelfType {
 	case "toBeRead":
-		item := models.ToBeReadItem{
+		item := models.ToBeReadBook{
 			BookID:    bookDetails.BookID,
 			Thumbnail: bookDetails.CoverImageURL,
 			AddedDate: currentTime,
 			Title:     bookDetails.Title,
 			Authors:   bookDetails.Authors,
-			Order:     len(profile.Lists.ToBeRead),
+			Order:     len(profile.Bookshelves.ToBeRead),
 		}
-		profile.Lists.ToBeRead = append(profile.Lists.ToBeRead, item)
+		profile.Bookshelves.ToBeRead = append(profile.Bookshelves.ToBeRead, item)
 	case "read":
-		item := models.ReadItem{
+		item := models.ReadBook{
 			BookID:        bookDetails.BookID,
 			CompletedDate: currentTime,
 			Thumbnail:     bookDetails.CoverImageURL,
@@ -189,22 +189,22 @@ func AddToList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResp
 			Review:        addReq.Review,
 			Title:         bookDetails.Title,
 			Authors:       bookDetails.Authors,
-			Order:         len(profile.Lists.Read),
+			Order:         len(profile.Bookshelves.Read),
 		}
-		profile.Lists.Read = append(profile.Lists.Read, item)
+		profile.Bookshelves.Read = append(profile.Bookshelves.Read, item)
 	default:
-		item := models.CustomListItem{
+		item := models.CustomShelfBook{
 			BookID:    bookDetails.BookID,
 			Thumbnail: bookDetails.CoverImageURL,
 			AddedDate: currentTime,
 			Title:     bookDetails.Title,
 			Authors:   bookDetails.Authors,
-			Order:     len(profile.Lists.CustomLists[addReq.ListType]),
+			Order:     len(profile.Bookshelves.CustomShelves[addReq.ShelfType]),
 		}
-		if profile.Lists.CustomLists == nil {
-			profile.Lists.CustomLists = make(map[string][]models.CustomListItem)
+		if profile.Bookshelves.CustomShelves == nil {
+			profile.Bookshelves.CustomShelves = make(map[string][]models.CustomShelfBook)
 		}
-		profile.Lists.CustomLists[addReq.ListType] = append(profile.Lists.CustomLists[addReq.ListType], item)
+		profile.Bookshelves.CustomShelves[addReq.ShelfType] = append(profile.Bookshelves.CustomShelves[addReq.ShelfType], item)
 	}
 
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
@@ -226,94 +226,230 @@ func AddToList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResp
 
 	return events.APIGatewayProxyResponse{
 		StatusCode: 201,
-		Body:       "Book added to list successfully",
+		Body:       "Book added to shelf successfully",
 	}
 }
 
-// UpdateListItem updates an item in a specific list
-func UpdateListItem(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
-	log.Println("UpdateListItem invoked")
+// DeleteBookshelf deletes a custom shelf from a user's profile
+func DeleteBookshelf(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	log.Println("DeleteBookshelf invoked")
 	userId, err := shared.GetUserIDFromToken(request)
 	if err != nil {
 		log.Printf("Error extracting userId: %v\n", err)
 		return shared.ErrorResponse(401, err.Error())
 	}
 
-	var updateReq UpdateListItemRequest
-	if err := json.Unmarshal([]byte(request.Body), &updateReq); err != nil {
+	shelfName := request.QueryStringParameters["shelfName"]
+	if shelfName == "" {
+		return shared.ErrorResponse(400, "shelfName parameter is required")
+	}
+
+	svc := shared.DynamoDBClient()
+	input := &dynamodb.GetItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Key: map[string]*dynamodb.AttributeValue{
+			"_id": {S: aws.String(userId)},
+		},
+	}
+
+	result, err := svc.GetItem(input)
+	if err != nil {
+		log.Printf("DynamoDB GetItem error: %v\n", err)
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+	}
+	if result.Item == nil {
+		return shared.ErrorResponse(404, "Profile not found")
+	}
+
+	var profile models.Profile
+	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
+		log.Printf("Error unmarshalling profile: %v\n", err)
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
+	}
+
+	if _, exists := profile.Bookshelves.CustomShelves[shelfName]; !exists {
+		return shared.ErrorResponse(404, "Shelf not found")
+	}
+
+	delete(profile.Bookshelves.CustomShelves, shelfName)
+
+	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
+	if err != nil {
+		log.Printf("Error marshalling updated profile: %v\n", err)
+		return shared.ErrorResponse(500, "Error marshalling updated profile: "+err.Error())
+	}
+
+	putInput := &dynamodb.PutItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Item:      updatedProfile,
+	}
+
+	_, err = svc.PutItem(putInput)
+	if err != nil {
+		log.Printf("DynamoDB PutItem error: %v\n", err)
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       "Shelf deleted successfully",
+	}
+}
+
+// RemoveFromBookshelf removes a book from a specific shelf
+func DeleteBookshelfItem(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	log.Println("RemoveFromBookshelf invoked")
+	userId, err := shared.GetUserIDFromToken(request)
+	if err != nil {
+		log.Printf("Error extracting userId: %v\n", err)
+		return shared.ErrorResponse(401, err.Error())
+	}
+
+	shelfType := request.QueryStringParameters["shelfType"]
+	bookId := request.QueryStringParameters["bookId"]
+	if shelfType == "" || bookId == "" {
+		return shared.ErrorResponse(400, "shelfType and bookId parameters are required")
+	}
+
+	svc := shared.DynamoDBClient()
+	input := &dynamodb.GetItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Key: map[string]*dynamodb.AttributeValue{
+			"_id": {S: aws.String(userId)},
+		},
+	}
+
+	result, err := svc.GetItem(input)
+	if err != nil {
+		log.Printf("DynamoDB GetItem error: %v\n", err)
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+	}
+	if result.Item == nil {
+		return shared.ErrorResponse(404, "Profile not found")
+	}
+
+	var profile models.Profile
+	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
+		log.Printf("Error unmarshalling profile: %v\n", err)
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
+	}
+
+	found := false
+	switch shelfType {
+	case "toBeRead":
+		for i, item := range profile.Bookshelves.ToBeRead {
+			if item.BookID == bookId {
+				profile.Bookshelves.ToBeRead = append(profile.Bookshelves.ToBeRead[:i], profile.Bookshelves.ToBeRead[i+1:]...)
+				found = true
+				break
+			}
+		}
+	case "read":
+		for i, item := range profile.Bookshelves.Read {
+			if item.BookID == bookId {
+				profile.Bookshelves.Read = append(profile.Bookshelves.Read[:i], profile.Bookshelves.Read[i+1:]...)
+				found = true
+				break
+			}
+		}
+	default:
+		if customShelf, exists := profile.Bookshelves.CustomShelves[shelfType]; exists {
+			for i, item := range customShelf {
+				if item.BookID == bookId {
+					profile.Bookshelves.CustomShelves[shelfType] = append(customShelf[:i], customShelf[i+1:]...)
+					found = true
+					break
+				}
+			}
+		}
+	}
+
+	if !found {
+		return shared.ErrorResponse(404, "Book not found in the specified shelf")
+	}
+
+	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
+	if err != nil {
+		log.Printf("Error marshalling updated profile: %v\n", err)
+		return shared.ErrorResponse(500, "Error marshalling updated profile: "+err.Error())
+	}
+
+	putInput := &dynamodb.PutItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Item:      updatedProfile,
+	}
+
+	_, err = svc.PutItem(putInput)
+	if err != nil {
+		log.Printf("DynamoDB PutItem error: %v\n", err)
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       "Book removed from shelf successfully",
+	}
+}
+
+// CreateBookshelf creates a new custom shelf for a user
+func CreateBookshelf(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	log.Println("CreateBookshelf invoked")
+	userId, err := shared.GetUserIDFromToken(request)
+	if err != nil {
+		log.Printf("Error extracting userId: %v\n", err)
+		return shared.ErrorResponse(401, err.Error())
+	}
+
+	var input struct {
+		ShelfName string `json:"shelfName"`
+	}
+	if err := json.Unmarshal([]byte(request.Body), &input); err != nil {
 		log.Printf("Invalid JSON: %v\n", err)
 		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
 	}
+	if input.ShelfName == "" {
+		return shared.ErrorResponse(400, "shelfName is required")
+	}
 
 	svc := shared.DynamoDBClient()
-	input := &dynamodb.GetItemInput{
+	getInput := &dynamodb.GetItemInput{
 		TableName: aws.String(PROFILES_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
 			"_id": {S: aws.String(userId)},
 		},
 	}
 
-	result, err := svc.GetItem(input)
+	result, err := svc.GetItem(getInput)
 	if err != nil {
 		log.Printf("DynamoDB GetItem error: %v\n", err)
 		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
 	}
-	if result.Item == nil {
-		return shared.ErrorResponse(404, "Profile not found")
-	}
 
 	var profile models.Profile
-	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
-		log.Printf("Error unmarshalling profile: %v\n", err)
-		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
-	}
-
-	found := false
-	switch updateReq.ListType {
-	case "toBeRead":
-		for i := range profile.Lists.ToBeRead {
-			if profile.Lists.ToBeRead[i].BookID == updateReq.BookID {
-				if updateReq.Order >= 0 {
-					profile.Lists.ToBeRead[i].Order = updateReq.Order
-				}
-				found = true
-				break
-			}
+	if result.Item != nil {
+		if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
+			log.Printf("Error unmarshalling profile: %v\n", err)
+			return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 		}
-	case "read":
-		for i := range profile.Lists.Read {
-			if profile.Lists.Read[i].BookID == updateReq.BookID {
-				if updateReq.Rating >= 0 {
-					profile.Lists.Read[i].Rating = updateReq.Rating
-				}
-				if updateReq.Review != "" {
-					profile.Lists.Read[i].Review = updateReq.Review
-				}
-				if updateReq.Order >= 0 {
-					profile.Lists.Read[i].Order = updateReq.Order
-				}
-				found = true
-				break
-			}
-		}
-	default:
-		if customList, exists := profile.Lists.CustomLists[updateReq.ListType]; exists {
-			for i := range customList {
-				if customList[i].BookID == updateReq.BookID {
-					if updateReq.Order >= 0 {
-						customList[i].Order = updateReq.Order
-					}
-					profile.Lists.CustomLists[updateReq.ListType] = customList
-					found = true
-					break
-				}
-			}
+	} else {
+		// Initialize a new profile if it doesn't exist
+		profile = models.Profile{
+			ID: userId,
 		}
 	}
 
-	if !found {
-		return shared.ErrorResponse(404, "Book not found in the specified list")
+	// Initialize CustomShelves if it doesn't exist
+	if profile.Bookshelves.CustomShelves == nil {
+		profile.Bookshelves.CustomShelves = make(map[string][]models.CustomShelfBook)
 	}
+
+	// Check if the shelf already exists
+	if _, exists := profile.Bookshelves.CustomShelves[input.ShelfName]; exists {
+		return shared.ErrorResponse(400, "A shelf with this name already exists")
+	}
+
+	// Create the new shelf
+	profile.Bookshelves.CustomShelves[input.ShelfName] = []models.CustomShelfBook{}
 
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
@@ -333,170 +469,7 @@ func UpdateListItem(request events.APIGatewayProxyRequest) events.APIGatewayProx
 	}
 
 	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       "List item updated successfully",
-	}
-}
-
-// DeleteList deletes a custom list from a user's profile
-func DeleteList(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
-	log.Println("DeleteList invoked")
-	userId, err := shared.GetUserIDFromToken(request)
-	if err != nil {
-		log.Printf("Error extracting userId: %v\n", err)
-		return shared.ErrorResponse(401, err.Error())
-	}
-
-	listName := request.QueryStringParameters["listName"]
-	if listName == "" {
-		return shared.ErrorResponse(400, "listName parameter is required")
-	}
-
-	svc := shared.DynamoDBClient()
-	input := &dynamodb.GetItemInput{
-		TableName: aws.String(PROFILES_TABLE_NAME),
-		Key: map[string]*dynamodb.AttributeValue{
-			"_id": {S: aws.String(userId)},
-		},
-	}
-
-	result, err := svc.GetItem(input)
-	if err != nil {
-		log.Printf("DynamoDB GetItem error: %v\n", err)
-		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
-	}
-	if result.Item == nil {
-		return shared.ErrorResponse(404, "Profile not found")
-	}
-
-	var profile models.Profile
-	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
-		log.Printf("Error unmarshalling profile: %v\n", err)
-		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
-	}
-
-	if _, exists := profile.Lists.CustomLists[listName]; !exists {
-		return shared.ErrorResponse(404, "List not found")
-	}
-
-	delete(profile.Lists.CustomLists, listName)
-
-	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
-	if err != nil {
-		log.Printf("Error marshalling updated profile: %v\n", err)
-		return shared.ErrorResponse(500, "Error marshalling updated profile: "+err.Error())
-	}
-
-	putInput := &dynamodb.PutItemInput{
-		TableName: aws.String(PROFILES_TABLE_NAME),
-		Item:      updatedProfile,
-	}
-
-	_, err = svc.PutItem(putInput)
-	if err != nil {
-		log.Printf("DynamoDB PutItem error: %v\n", err)
-		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
-	}
-
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       "List deleted successfully",
-	}
-}
-
-// RemoveFromList removes a book from a specific list
-func DeleteListItem(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
-	log.Println("RemoveFromList invoked")
-	userId, err := shared.GetUserIDFromToken(request)
-	if err != nil {
-		log.Printf("Error extracting userId: %v\n", err)
-		return shared.ErrorResponse(401, err.Error())
-	}
-
-	listType := request.QueryStringParameters["listType"]
-	bookId := request.QueryStringParameters["bookId"]
-	if listType == "" || bookId == "" {
-		return shared.ErrorResponse(400, "listType and bookId parameters are required")
-	}
-
-	svc := shared.DynamoDBClient()
-	input := &dynamodb.GetItemInput{
-		TableName: aws.String(PROFILES_TABLE_NAME),
-		Key: map[string]*dynamodb.AttributeValue{
-			"_id": {S: aws.String(userId)},
-		},
-	}
-
-	result, err := svc.GetItem(input)
-	if err != nil {
-		log.Printf("DynamoDB GetItem error: %v\n", err)
-		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
-	}
-	if result.Item == nil {
-		return shared.ErrorResponse(404, "Profile not found")
-	}
-
-	var profile models.Profile
-	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
-		log.Printf("Error unmarshalling profile: %v\n", err)
-		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
-	}
-
-	// Initialize lists if they don't exist
-
-	found := false
-	switch listType {
-	case "toBeRead":
-		for i, item := range profile.Lists.ToBeRead {
-			if item.BookID == bookId {
-				profile.Lists.ToBeRead = append(profile.Lists.ToBeRead[:i], profile.Lists.ToBeRead[i+1:]...)
-				found = true
-				break
-			}
-		}
-	case "read":
-		for i, item := range profile.Lists.Read {
-			if item.BookID == bookId {
-				profile.Lists.Read = append(profile.Lists.Read[:i], profile.Lists.Read[i+1:]...)
-				found = true
-				break
-			}
-		}
-	default:
-		if customList, exists := profile.Lists.CustomLists[listType]; exists {
-			for i, item := range customList {
-				if item.BookID == bookId {
-					profile.Lists.CustomLists[listType] = append(customList[:i], customList[i+1:]...)
-					found = true
-					break
-				}
-			}
-		}
-	}
-
-	if !found {
-		return shared.ErrorResponse(404, "Book not found in the specified list")
-	}
-
-	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
-	if err != nil {
-		log.Printf("Error marshalling updated profile: %v\n", err)
-		return shared.ErrorResponse(500, "Error marshalling updated profile: "+err.Error())
-	}
-
-	putInput := &dynamodb.PutItemInput{
-		TableName: aws.String(PROFILES_TABLE_NAME),
-		Item:      updatedProfile,
-	}
-
-	_, err = svc.PutItem(putInput)
-	if err != nil {
-		log.Printf("DynamoDB PutItem error: %v\n", err)
-		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
-	}
-
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       "Book removed from list successfully",
+		StatusCode: 201,
+		Body:       fmt.Sprintf("Custom shelf '%s' created successfully", input.ShelfName),
 	}
 }

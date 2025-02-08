@@ -16,8 +16,7 @@ func addCORSHeaders(response events.APIGatewayProxyResponse) events.APIGatewayPr
 	if response.Headers == nil {
 		response.Headers = map[string]string{}
 	}
-	// response.Headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
-	response.Headers["Access-Control-Allow-Origin"] = "https://getbookit.org"
+	response.Headers["Access-Control-Allow-Origin"] = "http://localhost:5173"
 	response.Headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
 	response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Amz-Date, X-Api-Key, X-Amz-Security-Token"
 	response.Headers["Access-Control-Allow-Credentials"] = "TRUE"
@@ -78,21 +77,26 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 			}
 		}
 
-	case strings.HasPrefix(path, "/list"):
-		// Handle /list routes
+	case strings.HasPrefix(path, "/bookshelves"):
+		// Handle /bookshelves routes
+		// Handle /bookshelves/{name} route
+		if strings.HasPrefix(path, "/bookshelves/") && method == "POST" {
+			response = handlers.CreateBookshelf(request)
+			break
+		}
+		if strings.HasPrefix(path, "/bookshelves/") && method == "DELETE" {
+			response = handlers.DeleteBookshelf(request)
+			break
+		}
 		switch method {
 		case "GET":
-			response = handlers.GetList(request)
+			response = handlers.GetBookshelf(request)
 		case "POST":
-			response = handlers.AddToList(request)
-		case "PUT":
-			response = handlers.UpdateListItem(request)
-		case "DELETE":
-			response = handlers.DeleteListItem(request)
+			response = handlers.AddToBookshelf(request)
 		default:
 			response = events.APIGatewayProxyResponse{
 				StatusCode: 405,
-				Body:       "Method Not Allowed for /list",
+				Body:       "Method Not Allowed for /bookshelves",
 			}
 		}
 

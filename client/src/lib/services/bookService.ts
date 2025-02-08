@@ -10,7 +10,7 @@ interface SearchResult {
 }
 
 export class BookService {
-	private token: string;
+	private readonly token: string;
 
 	constructor(token: string) {
 		this.token = token;
@@ -21,7 +21,7 @@ export class BookService {
 			method,
 			headers: {
 				'Content-Type': 'application/json',
-				Authorization: `Bearer ${this.token}` // Attach your token as a Bearer token
+				Authorization: `Bearer ${this.token}`
 			},
 			body: body ? JSON.stringify(body) : undefined
 		};
@@ -37,13 +37,13 @@ export class BookService {
 		}
 	}
 
-	async removeFromList(bookId: string, listType: string): Promise<void> {
+	async removeFromShelf(bookId: string, shelfType: string): Promise<void> {
 		const response = await fetch(
-			`${PUBLIC_API_BASE_URL}/list?listType=${listType}&bookId=${bookId}`,
+			`${PUBLIC_API_BASE_URL}/bookshelves?shelfType=${shelfType}&bookId=${bookId}`,
 			this.getOptions('DELETE')
 		);
 		if (!response.ok) {
-			throw new Error('Failed to remove book from list');
+			throw new Error('Failed to remove book from shelf');
 		}
 	}
 
@@ -57,10 +57,10 @@ export class BookService {
 		}
 	}
 
-	async startReading(bookId: string, listName: string): Promise<void> {
+	async startReading(bookId: string, shelfName: string): Promise<void> {
 		const response = await fetch(
 			`${PUBLIC_API_BASE_URL}/currently-reading/start-reading`,
-			this.getOptions('POST', { bookId, listName })
+			this.getOptions('POST', { bookId, shelfName })
 		);
 		if (!response.ok) {
 			throw new Error('Failed to start reading book');
@@ -88,13 +88,13 @@ export class BookService {
 		return await response.json();
 	}
 
-	async addToList(bookId: string, listType: string): Promise<void> {
+	async addToShelf(bookId: string, shelfType: string): Promise<void> {
 		const response = await fetch(
-			`${PUBLIC_API_BASE_URL}/list`,
-			this.getOptions('POST', { bookId, listType })
+			`${PUBLIC_API_BASE_URL}/bookshelves`,
+			this.getOptions('POST', { bookId, shelfType })
 		);
 		if (!response.ok) {
-			throw new Error('Failed to add book to list');
+			throw new Error('Failed to add book to shelf');
 		}
 	}
 
@@ -104,5 +104,25 @@ export class BookService {
 			this.getOptions('GET')
 		);
 		return await response.json();
+	}
+
+	async createBookshelf(shelfName: string): Promise<void> {
+		const response = await fetch(
+			`${PUBLIC_API_BASE_URL}/bookshelves`,
+			this.getOptions('POST', { shelfName })
+		);
+		if (!response.ok) {
+			throw new Error('Failed to create bookshelf');
+		}
+	}
+
+	async deleteBookshelf(shelfName: string): Promise<void> {
+		const response = await fetch(
+			`${PUBLIC_API_BASE_URL}/bookshelves?shelfName=${shelfName}`,
+			this.getOptions('DELETE')
+		);
+		if (!response.ok) {
+			throw new Error('Failed to delete bookshelf');
+		}
 	}
 }

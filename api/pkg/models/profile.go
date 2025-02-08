@@ -4,7 +4,7 @@ type Profile struct {
 	ID                 string                 `json:"_id"`
 	ProfileInformation ProfileInformation     `json:"profileInformation"`
 	CurrentlyReading   []CurrentlyReadingItem `json:"currentlyReading,omitempty"`
-	Lists              UserLists              `json:"lists,omitempty"`
+	Bookshelves        UserBookshelves        `json:"bookshelves,omitempty"`
 	ReadingLog         []ReadingLogItem       `json:"readingLog,omitempty"`
 	Challenges         []ReadingChallenge     `json:"challenges,omitempty"`
 }
@@ -36,13 +36,13 @@ type ReadingProgress struct {
 	Notes        string  `json:"notes,omitempty"`
 }
 
-type UserLists struct {
-	ToBeRead    []ToBeReadItem              `json:"toBeRead,omitempty"`
-	Read        []ReadItem                  `json:"read,omitempty"`
-	CustomLists map[string][]CustomListItem `json:"customLists,omitempty"`
+type UserBookshelves struct {
+	ToBeRead      []ToBeReadBook               `json:"toBeRead,omitempty"`
+	Read          []ReadBook                   `json:"read,omitempty"`
+	CustomShelves map[string][]CustomShelfBook `json:"customShelves,omitempty"`
 }
 
-type ToBeReadItem struct {
+type ToBeReadBook struct {
 	BookID    string   `json:"bookId"`
 	Thumbnail string   `json:"thumbnail,omitempty"`
 	AddedDate string   `json:"addedDate,omitempty"`
@@ -51,7 +51,7 @@ type ToBeReadItem struct {
 	Authors   []string `json:"authors,omitempty"`
 }
 
-type ReadItem struct {
+type ReadBook struct {
 	BookID        string   `json:"bookId"`
 	Thumbnail     string   `json:"thumbnail,omitempty"`
 	CompletedDate string   `json:"completedDate,omitempty"`
@@ -62,7 +62,7 @@ type ReadItem struct {
 	Authors       []string `json:"authors,omitempty"`
 }
 
-type CustomListItem struct {
+type CustomShelfBook struct {
 	BookID    string   `json:"bookId"`
 	Thumbnail string   `json:"thumbnail,omitempty"`
 	AddedDate string   `json:"addedDate,omitempty"`

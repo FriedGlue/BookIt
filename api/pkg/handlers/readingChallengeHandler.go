@@ -370,3 +370,67 @@ func DeleteChallenge(request events.APIGatewayProxyRequest) events.APIGatewayPro
 
 	return shared.SuccessResponse(200, map[string]string{"message": "Challenge deleted successfully"})
 }
+
+// updateChallenges recalculates progress for each reading challenge in the profile.
+// It uses your existing calculation functions (calculateCurrentPace and calculateScheduleStatus)
+// to update the challenge fields.
+func updateChallenges(profile *models.Profile) {
+	now := time.Now()
+	// Loop through every challenge on the profile
+	for i, ch := range profile.Challenges {
+		log.Printf("Updating challenge %s: target=%d, type=%s, timeframe=%s", ch.ID, ch.Target, ch.Type, ch.TimeFrame)
+
+		// Compute the aggregated progress based on challenge type.
+		aggProgress := aggregateChallengeProgress(profile, ch)
+		log.Printf("Aggregated progress for challenge %s: %d", ch.ID, aggProgress)
+
+		// Set the current progress and update percentage.
+		profile.Challenges[i].Progress.Current = aggProgress
+		if ch.Target != 0 {
+			profile.Challenges[i].Progress.Percentage = float64(aggProgress) / float64(ch.Target) * 100
+		}
+
+		// Update the reading pace. (calculateCurrentPace should use the challenge's start date and current progress.)
+		currentPace := calculateCurrentPace(ch)
+		profile.Challenges[i].Progress.Rate.CurrentPace = currentPace
+
+		// Calculate the schedule difference and status.
+		scheduleDiff, status := calculateScheduleStatus(ch)
+		profile.Challenges[i].Progress.Rate.ScheduleDiff = scheduleDiff
+		profile.Challenges[i].Progress.Rate.Status = status
+
+		// Update the challenge's timestamp.
+		profile.Challenges[i].UpdatedAt = now
+		log.Printf("Updated challenge %s: current=%d, percentage=%.2f%%, current pace=%.2f, schedule diff=%.2f, status=%s",
+			ch.ID, aggProgress, profile.Challenges[i].Progress.Percentage, currentPace, scheduleDiff, status)
+	}
+}
+
+// aggregateChallengeProgress aggregates the total progress for a given challenge.
+// It differentiates based on the challenge type (books vs pages) and logs the result.
+// For a books challenge, it counts the number of reading log entries with a note of "Book Finished".
+// For a pages challenge, it sums the PagesRead values.
+func aggregateChallengeProgress(profile *models.Profile, challenge models.ReadingChallenge) int {
+	total := 0
+	switch challenge.Type {
+	case models.BooksChallenge:
+		// For a books challenge, count the number of log entries that indicate a book was completed.
+		for _, logEntry := range profile.ReadingLog {
+			// Adjust the logic as needed to match your book‐completion criteria.
+			if logEntry.Notes == "Book Finished" {
+				total++
+			}
+		}
+		log.Printf("Challenge %s (Books): total completed books = %d", challenge.ID, total)
+	case models.PagesChallenge:
+		// For a pages challenge, sum the pages read.
+		for _, logEntry := range profile.ReadingLog {
+			total += logEntry.PagesRead
+		}
+		log.Printf("Challenge %s (Pages): total pages read = %d", challenge.ID, total)
+	default:
+		// If you have other types or want a default behavior, you could add it here.
+		log.Printf("Challenge %s: unknown type %s; defaulting aggregated progress to 0", challenge.ID, challenge.Type)
+	}
+	return total
+}

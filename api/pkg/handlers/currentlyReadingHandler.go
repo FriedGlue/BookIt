@@ -185,6 +185,7 @@ func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGate
 		Notes:         "Book Started",
 	}
 	profile.ReadingLog = append(profile.ReadingLog, logEntry)
+	updateChallenges(&profile)
 
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
@@ -321,6 +322,7 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 		Notes:         updateReq.Notes,
 	}
 	profile.ReadingLog = append(profile.ReadingLog, logEntry)
+	updateChallenges(&profile)
 
 	// Marshal the updated profile back to DynamoDB format
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
@@ -414,7 +416,7 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 		Notes:         "Book Removed",
 	}
 	profile.ReadingLog = append(profile.ReadingLog, logEntry)
-
+	updateChallenges(&profile)
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
 		log.Printf("Error marshalling updated profile: %v\n", err)
@@ -440,11 +442,11 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 
 // StartReadingRequest represents the request body for starting a book
 type StartReadingRequest struct {
-	BookID   string `json:"bookId"`
-	ListName string `json:"listName"` // "toBeRead", "read", or custom list name
+	BookID    string `json:"bookId"`
+	ShelfName string `json:"shelfName"` // "toBeRead", "read", or custom shelf name
 }
 
-// StartReading moves a book from any list to currently reading
+// StartReading moves a book from any shelf to currently reading
 func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
 	log.Println("StartReading invoked")
 	userId, err := shared.GetUserIDFromToken(request)
@@ -462,8 +464,8 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 	if startReq.BookID == "" {
 		return shared.ErrorResponse(400, "bookId is required")
 	}
-	if startReq.ListName == "" {
-		return shared.ErrorResponse(400, "listName is required")
+	if startReq.ShelfName == "" {
+		return shared.ErrorResponse(400, "shelfName is required")
 	}
 
 	svc := shared.DynamoDBClient()
@@ -490,31 +492,31 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
-	// Find and remove the book from the specified list
+	// Find and remove the book from the specified shelf
 	found := false
-	switch startReq.ListName {
+	switch startReq.ShelfName {
 	case "toBeRead":
-		for i, item := range profile.Lists.ToBeRead {
+		for i, item := range profile.Bookshelves.ToBeRead {
 			if item.BookID == startReq.BookID {
-				profile.Lists.ToBeRead = append(profile.Lists.ToBeRead[:i], profile.Lists.ToBeRead[i+1:]...)
+				profile.Bookshelves.ToBeRead = append(profile.Bookshelves.ToBeRead[:i], profile.Bookshelves.ToBeRead[i+1:]...)
 				found = true
 				break
 			}
 		}
 	case "read":
-		for i, item := range profile.Lists.Read {
+		for i, item := range profile.Bookshelves.Read {
 			if item.BookID == startReq.BookID {
-				profile.Lists.Read = append(profile.Lists.Read[:i], profile.Lists.Read[i+1:]...)
+				profile.Bookshelves.Read = append(profile.Bookshelves.Read[:i], profile.Bookshelves.Read[i+1:]...)
 				found = true
 				break
 			}
 		}
 	default:
-		// Check custom lists
-		if customList, exists := profile.Lists.CustomLists[startReq.ListName]; exists {
-			for i, item := range customList {
+		// Check custom shelves
+		if customShelf, exists := profile.Bookshelves.CustomShelves[startReq.ShelfName]; exists {
+			for i, item := range customShelf {
 				if item.BookID == startReq.BookID {
-					profile.Lists.CustomLists[startReq.ListName] = append(customList[:i], customList[i+1:]...)
+					profile.Bookshelves.CustomShelves[startReq.ShelfName] = append(customShelf[:i], customShelf[i+1:]...)
 					found = true
 					break
 				}
@@ -523,7 +525,7 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 	}
 
 	if !found {
-		return shared.ErrorResponse(404, fmt.Sprintf("Book not found in %s list", startReq.ListName))
+		return shared.ErrorResponse(404, fmt.Sprintf("Book not found in %s shelf", startReq.ShelfName))
 	}
 
 	// Get book details from the Books table
@@ -581,7 +583,7 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 		Notes:         "Book Started",
 	}
 	profile.ReadingLog = append(profile.ReadingLog, logEntry)
-
+	updateChallenges(&profile)
 	// Update the profile in DynamoDB
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
@@ -599,10 +601,10 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
 	}
 
-	log.Printf("Book moved to currently reading from %s list for user %s\n", startReq.ListName, userId)
+	log.Printf("Book moved to currently reading from %s shelf for user %s\n", startReq.ShelfName, userId)
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
-		Body:       fmt.Sprintf("Book moved to currently reading from %s list", startReq.ListName),
+		Body:       fmt.Sprintf("Book moved to currently reading from %s shelf", startReq.ShelfName),
 	}
 }
 
@@ -611,7 +613,7 @@ type FinishReadingRequest struct {
 	BookID string `json:"bookId"`
 }
 
-// FinishReading moves a book from currently reading to read list
+// FinishReading moves a book from currently reading to read shelf
 func FinishReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
 	log.Println("FinishReading invoked")
 	userId, err := shared.GetUserIDFromToken(request)
@@ -670,35 +672,31 @@ func FinishReading(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 		return shared.ErrorResponse(404, "Book not found in currently reading list")
 	}
 
-	// Create a new read item
-	readItem := models.ReadItem{
+	// Create a new read book
+	readBook := models.ReadBook{
 		BookID:        bookToMove.Book.BookID,
 		CompletedDate: time.Now().Format(time.RFC3339),
+		Thumbnail:     bookToMove.Book.Thumbnail,
 		Title:         bookToMove.Book.Title,
 		Authors:       bookToMove.Book.Authors,
-		Thumbnail:     bookToMove.Book.Thumbnail,
-		Rating:        0,  // Initial rating
-		Review:        "", // Initial review
-		Order:         len(profile.Lists.Read),
+		Order:         len(profile.Bookshelves.Read),
 	}
 
-	// Initialize Lists if needed and add to read list
-	if len(profile.Lists.Read) == 0 {
-		profile.Lists.Read = []models.ReadItem{}
-	}
-	profile.Lists.Read = append(profile.Lists.Read, readItem)
+	// Add to read shelf
+	profile.Bookshelves.Read = append(profile.Bookshelves.Read, readBook)
 
 	// Update the reading log with the new progress
 	logEntry := models.ReadingLogItem{
 		Id:            fmt.Sprintf("%d", rand.Int()),
 		Date:          time.Now().Format(time.RFC3339),
-		BookID:        readItem.BookID,
-		Title:         readItem.Title,
-		BookThumbnail: readItem.Thumbnail,
-		PagesRead:     bookToMove.Book.TotalPages,
+		BookID:        bookToMove.Book.BookID,
+		Title:         bookToMove.Book.Title,
+		BookThumbnail: bookToMove.Book.Thumbnail,
+		PagesRead:     bookToMove.Book.Progress.LastPageRead,
 		Notes:         "Book Finished",
 	}
 	profile.ReadingLog = append(profile.ReadingLog, logEntry)
+	updateChallenges(&profile)
 
 	// Update the profile in DynamoDB
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
@@ -717,9 +715,9 @@ func FinishReading(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
 	}
 
-	log.Printf("Book moved to read list for user %s\n", userId)
+	log.Printf("Book moved to read shelf for user %s\n", userId)
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
-		Body:       "Book moved to read list",
+		Body:       "Book moved to read shelf",
 	}
 }

@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import { BookService } from '$lib/services/bookService';
-import type { Profile } from '$lib/types';
+import type { Profile, UserBookshelves } from '$lib/types';
 
 export const load = (async ({ fetch, cookies }) => {
 	try {
@@ -10,9 +10,11 @@ export const load = (async ({ fetch, cookies }) => {
 		if (!token) {
 			console.log('No token found');
 			return {
-				toBeReadList: [],
-				readList: [],
-				customLists: {}
+				bookshelves: {
+					toBeRead: [],
+					read: [],
+					customShelves: {}
+				} as UserBookshelves
 			};
 		}
 
@@ -32,17 +34,21 @@ export const load = (async ({ fetch, cookies }) => {
 		const profile: Profile = await response.json();
 
 		return {
-			toBeReadList: profile.lists?.toBeRead,
-			readList: profile.lists?.read,
-			customLists: profile.lists?.customLists
+			bookshelves: profile.bookshelves ?? {
+				toBeRead: [],
+				read: [],
+				customShelves: {}
+			}
 		};
 	} catch (error) {
-		console.error('Error loading lists:', error);
-		// Return fallback data or handle as you prefer
+		console.error('Error loading bookshelves:', error);
+		// Return fallback data
 		return {
-			toBeReadList: [],
-			readList: [],
-			customLists: {}
+			bookshelves: {
+				toBeRead: [],
+				read: [],
+				customShelves: {}
+			} as UserBookshelves
 		};
 	}
 }) satisfies PageServerLoad;
@@ -70,25 +76,67 @@ export const actions: Actions = {
 		}
 	},
 
-	removeFromList: async ({ request, cookies }) => {
+	removeFromShelf: async ({ request, cookies }) => {
 		const token = cookies.get('idToken');
 		if (!token) return { error: 'No token' };
 
 		const formData = await request.formData();
 		const bookId = formData.get('bookId')?.toString();
-		const listType = formData.get('listType')?.toString();
+		const shelfType = formData.get('shelfType')?.toString();
 
-		if (!bookId || !listType) {
+		if (!bookId || !shelfType) {
 			return { error: 'Missing form data' };
 		}
 
 		try {
 			const bookService = new BookService(token);
-			await bookService.removeFromList(bookId, listType);
+			await bookService.removeFromShelf(bookId, shelfType);
 			return { success: true };
 		} catch (err) {
-			console.error('Failed to remove from list:', err);
-			return { error: 'Failed to remove from list' };
+			console.error('Failed to remove from shelf:', err);
+			return { error: 'Failed to remove from shelf' };
+		}
+	},
+
+	createBookshelf: async ({ request, cookies }) => {
+		const token = cookies.get('idToken');
+		if (!token) return { error: 'No token' };
+
+		const formData = await request.formData();
+		const shelfName = formData.get('shelfName')?.toString();
+
+		if (!shelfName) {
+			return { error: 'Missing form data' };
+		}
+
+		try {
+			const bookService = new BookService(token);
+			await bookService.createBookshelf(shelfName);
+			return { success: true };
+		} catch (err) {
+			console.error('Failed to create bookshelf:', err);
+			return { error: 'Failed to create bookshelf' };
+		}
+	},
+
+	deleteBookshelf: async ({ request, cookies }) => {
+		const token = cookies.get('idToken');
+		if (!token) return { error: 'No token' };
+
+		const formData = await request.formData();
+		const shelfName = formData.get('shelfName')?.toString();
+
+		if (!shelfName) {
+			return { error: 'Missing form data' };
+		}
+
+		try {
+			const bookService = new BookService(token);
+			await bookService.deleteBookshelf(shelfName);
+			return { success: true };
+		} catch (err) {
+			console.error('Failed to delete bookshelf:', err);
+			return { error: 'Failed to delete bookshelf' };
 		}
 	}
 };
