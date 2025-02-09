@@ -185,6 +185,7 @@ func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGate
 		Notes:         "Book Started",
 	}
 	profile.ReadingLog = append(profile.ReadingLog, logEntry)
+	updateChallenges(&profile)
 
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
@@ -321,6 +322,7 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 		Notes:         updateReq.Notes,
 	}
 	profile.ReadingLog = append(profile.ReadingLog, logEntry)
+	updateChallenges(&profile)
 
 	// Marshal the updated profile back to DynamoDB format
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
@@ -414,6 +416,7 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 		Notes:         "Book Removed",
 	}
 	profile.ReadingLog = append(profile.ReadingLog, logEntry)
+	updateChallenges(&profile)
 
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
@@ -581,7 +584,7 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 		Notes:         "Book Started",
 	}
 	profile.ReadingLog = append(profile.ReadingLog, logEntry)
-
+	updateChallenges(&profile)
 	// Update the profile in DynamoDB
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
@@ -699,7 +702,7 @@ func FinishReading(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 		Notes:         "Book Finished",
 	}
 	profile.ReadingLog = append(profile.ReadingLog, logEntry)
-
+	updateChallenges(&profile)
 	// Update the profile in DynamoDB
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
