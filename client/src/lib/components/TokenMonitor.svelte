@@ -38,6 +38,7 @@
 
             if (timeUntilExpiry > 0 && timeUntilExpiry < 5 * 60 * 1000) {
                 showModal = true;
+                authService.logout();
             }
         } catch (err) {
             console.error('Failed to decode token:', err);
