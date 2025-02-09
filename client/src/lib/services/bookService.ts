@@ -67,6 +67,16 @@ export class BookService {
 		}
 	}
 
+	async addToCurrentlyReading(bookId: string): Promise<void> {
+		const response = await fetch(
+			`${PUBLIC_API_BASE_URL}/currently-reading`,
+			this.getOptions('POST', { bookId })
+		);
+		if (!response.ok) {
+			throw new Error('Failed to add book to currently reading');
+		}
+	}
+
 	async finishReading(bookId: string): Promise<void> {
 		const response = await fetch(
 			`${PUBLIC_API_BASE_URL}/currently-reading/finish-reading`,

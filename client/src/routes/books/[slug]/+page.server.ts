@@ -97,7 +97,7 @@ export const actions: Actions = {
 
 		try {
 			const bookService = new BookService(token);
-			await bookService.startReading(bookId, 'currentlyReading');
+			await bookService.addToCurrentlyReading(bookId);
 			return { success: true };
 		} catch (error) {
 			console.error('Failed to start reading book:', error);

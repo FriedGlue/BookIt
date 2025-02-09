@@ -247,6 +247,19 @@
 				</tbody>
 			</table>
 		{/if}
+
+		{#if selectedList === 'Charts & Graphs'}
+			<div class="mb-6 flex justify-end">
+				<button
+					class="rounded-full bg-blue-500 px-6 py-2 text-white hover:bg-blue-600"
+					on:click={openNewEntryForm}
+				>
+					Add Past Entry
+				</button>
+			</div>
+
+			<h1 class="mb-6 text-2xl font-bold">Coming Soon</h1>
+		{/if}
 	</section>
 </div>
 
