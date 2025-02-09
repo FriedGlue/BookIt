@@ -212,10 +212,10 @@ Resources:
             RestApiId: !Ref BookItApi
 
         # List routes
-        AnyBookshelvesEvent:
+        AnyListsEvent:
           Type: Api
           Properties:
-            Path: /bookshelves
+            Path: /list
             Method: ANY
             RestApiId: !Ref BookItApi
 
