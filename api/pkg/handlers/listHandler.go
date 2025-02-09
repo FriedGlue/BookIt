@@ -500,3 +500,142 @@ func DeleteListItem(request events.APIGatewayProxyRequest) events.APIGatewayProx
 		Body:       "Book removed from list successfully",
 	}
 }
+
+func CreateCustomBookshelf(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	log.Println("CreateCustomBookshelf invoked")
+	userId, err := shared.GetUserIDFromToken(request)
+	if err != nil {
+		log.Printf("Error extracting userId: %v\n", err)
+		return shared.ErrorResponse(401, err.Error())
+	}
+
+	listName := request.PathParameters["listName"]
+	if listName == "" {
+		return shared.ErrorResponse(400, "listName parameter is required")
+	}
+
+	svc := shared.DynamoDBClient()
+	input := &dynamodb.GetItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Key: map[string]*dynamodb.AttributeValue{
+			"_id": {S: aws.String(userId)},
+		},
+	}
+
+	result, err := svc.GetItem(input)
+	if err != nil {
+		log.Printf("DynamoDB GetItem error: %v\n", err)
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+	}
+
+	if result.Item == nil {
+		return shared.ErrorResponse(404, "Profile not found")
+	}
+
+	var profile models.Profile
+	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
+		log.Printf("Error unmarshalling profile: %v\n", err)
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
+	}
+
+	// Initialize CustomLists map if it doesn't exist
+	if profile.Lists.CustomLists == nil {
+		profile.Lists.CustomLists = make(map[string][]models.CustomListItem)
+	}
+
+	if _, exists := profile.Lists.CustomLists[listName]; exists {
+		return shared.ErrorResponse(400, "Custom bookshelf already exists")
+	}
+
+	profile.Lists.CustomLists[listName] = []models.CustomListItem{}
+
+	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
+	if err != nil {
+		log.Printf("Error marshalling updated profile: %v\n", err)
+		return shared.ErrorResponse(500, "Error marshalling updated profile: "+err.Error())
+	}
+
+	putInput := &dynamodb.PutItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Item:      updatedProfile,
+	}
+
+	_, err = svc.PutItem(putInput)
+	if err != nil {
+		log.Printf("DynamoDB PutItem error: %v\n", err)
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       "Bookshelf created successfully",
+	}
+}
+
+func DeleteCustomBookshelf(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	log.Println("DeleteCustomBookshelf invoked")
+	userId, err := shared.GetUserIDFromToken(request)
+	if err != nil {
+		log.Printf("Error extracting userId: %v\n", err)
+		return shared.ErrorResponse(401, err.Error())
+	}
+
+	listName := request.PathParameters["listName"]
+	if listName == "" {
+		return shared.ErrorResponse(400, "listName parameter is required")
+	}
+
+	svc := shared.DynamoDBClient()
+	input := &dynamodb.GetItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Key: map[string]*dynamodb.AttributeValue{
+			"_id": {S: aws.String(userId)},
+		},
+	}
+
+	result, err := svc.GetItem(input)
+	if err != nil {
+		log.Printf("DynamoDB GetItem error: %v\n", err)
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+	}
+
+	if result.Item == nil {
+		return shared.ErrorResponse(404, "Profile not found")
+	}
+
+	var profile models.Profile
+	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
+		log.Printf("Error unmarshalling profile: %v\n", err)
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
+	}
+
+	// Check if the list exists before trying to delete it
+	if _, exists := profile.Lists.CustomLists[listName]; !exists {
+		return shared.ErrorResponse(404, "Custom bookshelf not found")
+	}
+
+	// Delete the custom list
+	delete(profile.Lists.CustomLists, listName)
+
+	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
+	if err != nil {
+		log.Printf("Error marshalling updated profile: %v\n", err)
+		return shared.ErrorResponse(500, "Error marshalling updated profile: "+err.Error())
+	}
+
+	putInput := &dynamodb.PutItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Item:      updatedProfile,
+	}
+
+	_, err = svc.PutItem(putInput)
+	if err != nil {
+		log.Printf("DynamoDB PutItem error: %v\n", err)
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       "Bookshelf deleted successfully",
+	}
+}

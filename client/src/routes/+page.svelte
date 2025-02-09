@@ -281,52 +281,6 @@
 				</div>
 			{/if}
 		</section>
-
-		<!-- Divider -->
-		<hr class="my-16 border-gray-300" />
-
-		<!-- Custom Lists Section -->
-		{#if data.profile && data.profile.lists && data.profile.lists.customLists}
-			{#each Object.entries(data.profile.lists.customLists) as [listName, books]}
-				<section class="mx-8 mt-16 flex flex-col items-start px-4 md:mx-16 lg:mx-40">
-					<div class="mb-8 w-full text-left">
-						<h1 class="text-4xl font-bold text-gray-600 md:text-5xl lg:text-4xl">
-							{listName} ({books.length})
-						</h1>
-						<a
-							href="/lists?list={listName}"
-							class="mt-2 text-lg font-semibold text-blue-500 hover:text-blue-700">View All</a
-						>
-					</div>
-
-					<!-- Grid Container -->
-					<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-						{#each books.slice(0, 4).reverse() as book}
-							<div
-								class="flex transform flex-col rounded-lg bg-gray-300 shadow-lg transition-shadow duration-300 hover:scale-105 hover:shadow-2xl"
-							>
-								<div class="relative w-full">
-									<img
-										src={book.thumbnail || 'default-cover-image-url'}
-										alt="Book Cover"
-										loading="lazy"
-										decoding="async"
-										style="opacity: 0; transition: opacity 0.3s"
-										on:load={(e) => ((e.currentTarget as HTMLImageElement).style.opacity = '1')}
-										class="h-64 w-full rounded-lg sm:h-72 md:h-80 lg:h-64"
-									/>
-								</div>
-								<!-- Optionally add "Details" or "Remove" forms here -->
-							</div>
-						{/each}
-
-						{#if books.length > 4}
-							<div class="flex items-center justify-center text-xl text-gray-600">...</div>
-						{/if}
-					</div>
-				</section>
-			{/each}
-		{/if}
 	</main>
 
 	<!-- Bottom spacing if needed -->

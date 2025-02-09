@@ -105,4 +105,27 @@ export class BookService {
 		);
 		return await response.json();
 	}
+
+	async createCustomBookshelf(listName: string): Promise<void> {
+		const response = await fetch(
+			`${PUBLIC_API_BASE_URL}/list/${listName}`,
+			this.getOptions('POST')
+		);
+		if (!response.ok) {
+			console.error('Failed to create custom bookshelf', response);
+			throw new Error('Failed to create custom bookshelf');
+		}
+	}
+
+	async deleteCustomBookshelf(listName: string): Promise<void> {
+		const response = await fetch(
+			`${PUBLIC_API_BASE_URL}/list/${listName}`,
+			this.getOptions('DELETE')
+		);
+		if (!response.ok) {
+			console.error('Failed to delete custom bookshelf', response);
+			throw new Error('Failed to delete custom bookshelf');
+		}
+	}
 }
+

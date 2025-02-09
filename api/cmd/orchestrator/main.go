@@ -79,6 +79,16 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 		}
 
 	case strings.HasPrefix(path, "/list"):
+		// Handle /list/{listName} routes
+		if strings.HasPrefix(path, "/list/") && method == "DELETE" {
+			response = handlers.DeleteCustomBookshelf(request)
+			break
+		}
+		if strings.HasPrefix(path, "/list/") && method == "POST" {
+			response = handlers.CreateCustomBookshelf(request)
+			break
+		}
+
 		// Handle /list routes
 		switch method {
 		case "GET":

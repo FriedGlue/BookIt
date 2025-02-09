@@ -90,5 +90,47 @@ export const actions: Actions = {
 			console.error('Failed to remove from list:', err);
 			return { error: 'Failed to remove from list' };
 		}
+	},
+
+	createCustomBookshelf: async ({ request, cookies }) => {
+		const token = cookies.get('idToken');
+		if (!token) return { error: 'No token' };
+
+		const formData = await request.formData();
+		const listName = formData.get('listName')?.toString();
+
+		if (!listName) {
+			return { error: 'Missing list name' };
+		}
+
+		try {
+			const bookService = new BookService(token);
+			await bookService.createCustomBookshelf(listName);
+			return { success: true };
+		} catch (err) {
+			console.error('Failed to create custom bookshelf:', err);
+			return { error: 'Failed to create custom bookshelf' };
+		}
+	},
+
+	deleteCustomBookshelf: async ({ request, cookies }) => {
+		const token = cookies.get('idToken');
+		if (!token) return { error: 'No token' };
+
+		const formData = await request.formData();
+		const listName = formData.get('listName')?.toString();
+
+		if (!listName) {
+			return { error: 'Missing list name' };
+		}
+
+		try {
+			const bookService = new BookService(token);
+			await bookService.deleteCustomBookshelf(listName);
+			return { success: true };
+		} catch (err) {
+			console.error('Failed to delete custom bookshelf:', err);
+			return { error: 'Failed to delete custom bookshelf' };
+		}
 	}
 };

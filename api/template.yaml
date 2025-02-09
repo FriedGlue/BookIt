@@ -212,6 +212,14 @@ Resources:
             RestApiId: !Ref BookItApi
 
         # List routes
+        AnyListsEventWithListName:
+          Type: Api
+          Properties:
+            Path: /list/{listName}
+            Method: ANY
+            RestApiId: !Ref BookItApi
+
+        # List routes
         AnyListsEvent:
           Type: Api
           Properties:
