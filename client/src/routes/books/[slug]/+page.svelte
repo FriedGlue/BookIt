@@ -12,6 +12,7 @@
 	let isStartReading = false;
 	let addingToList: string | null = null;
 	let imageLoading = true;
+	let lastAddedList: string | null = null;
 	
 	const defaultLists = [
 		{ id: 'toBeRead', name: 'To Be Read' },
@@ -27,6 +28,9 @@
 
 	function toggleDropdown() {
 		showListDropdown = !showListDropdown;
+		if (!showListDropdown) {
+			lastAddedList = null;
+		}
 	}
 
 	function closeDropdown() {
@@ -150,7 +154,11 @@
 							aria-controls="bookshelf-menu"
 							class="inline-block w-full rounded-full bg-blue-600 px-6 py-3 text-white transition-all duration-200 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
 						>
-							Add to a Bookshelf
+							{#if lastAddedList}
+								Added to {allLists.find(l => l.id === lastAddedList)?.name}
+							{:else}
+								Add to a Bookshelf
+							{/if}
 						</button>
 						
 						{#if showListDropdown}
@@ -171,6 +179,7 @@
 												return async ({ result }) => {
 													addingToList = null;
 													if (result.type === 'success') {
+														lastAddedList = list.id;
 														closeDropdown();
 													}
 												};

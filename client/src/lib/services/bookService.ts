@@ -108,7 +108,7 @@ export class BookService {
 
 	async createCustomBookshelf(listName: string): Promise<void> {
 		const response = await fetch(
-			`${PUBLIC_API_BASE_URL}/list/${listName}`,
+			`${PUBLIC_API_BASE_URL}/list?listName=${encodeURIComponent(listName)}`,
 			this.getOptions('POST')
 		);
 		if (!response.ok) {
@@ -119,7 +119,7 @@ export class BookService {
 
 	async deleteCustomBookshelf(listName: string): Promise<void> {
 		const response = await fetch(
-			`${PUBLIC_API_BASE_URL}/list/${listName}`,
+			`${PUBLIC_API_BASE_URL}/list?listName=${encodeURIComponent(listName)}`,
 			this.getOptions('DELETE')
 		);
 		if (!response.ok) {

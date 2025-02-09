@@ -509,7 +509,7 @@ func CreateCustomBookshelf(request events.APIGatewayProxyRequest) events.APIGate
 		return shared.ErrorResponse(401, err.Error())
 	}
 
-	listName := request.PathParameters["listName"]
+	listName := request.QueryStringParameters["listName"]
 	if listName == "" {
 		return shared.ErrorResponse(400, "listName parameter is required")
 	}
@@ -580,7 +580,7 @@ func DeleteCustomBookshelf(request events.APIGatewayProxyRequest) events.APIGate
 		return shared.ErrorResponse(401, err.Error())
 	}
 
-	listName := request.PathParameters["listName"]
+	listName := request.QueryStringParameters["listName"]
 	if listName == "" {
 		return shared.ErrorResponse(400, "listName parameter is required")
 	}

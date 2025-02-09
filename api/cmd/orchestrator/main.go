@@ -79,26 +79,24 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 		}
 
 	case strings.HasPrefix(path, "/list"):
-		// Handle /list/{listName} routes
-		if strings.HasPrefix(path, "/list/") && method == "DELETE" {
-			response = handlers.DeleteCustomBookshelf(request)
-			break
-		}
-		if strings.HasPrefix(path, "/list/") && method == "POST" {
-			response = handlers.CreateCustomBookshelf(request)
-			break
-		}
-
 		// Handle /list routes
 		switch method {
 		case "GET":
 			response = handlers.GetList(request)
 		case "POST":
-			response = handlers.AddToList(request)
+			if request.QueryStringParameters["listName"] != "" {
+				response = handlers.CreateCustomBookshelf(request)
+			} else {
+				response = handlers.AddToList(request)
+			}
 		case "PUT":
 			response = handlers.UpdateListItem(request)
 		case "DELETE":
-			response = handlers.DeleteListItem(request)
+			if request.QueryStringParameters["listName"] != "" {
+				response = handlers.DeleteCustomBookshelf(request)
+			} else {
+				response = handlers.DeleteListItem(request)
+			}
 		default:
 			response = events.APIGatewayProxyResponse{
 				StatusCode: 405,

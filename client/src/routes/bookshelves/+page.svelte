@@ -94,6 +94,16 @@
 		};
 	};
 
+	const handleDelete = () => {
+		return async ({ update }: { update: () => Promise<void> }) => {
+			await update();
+			// Close modals
+			showDeleteListModal = false;
+			selectedListToDelete = '';
+			selectedList = 'All';
+		};
+	};
+
 	onMount(() => {
 		const listParam = new URL(window.location.href).searchParams.get('list');
 		if (listParam) {
@@ -237,7 +247,7 @@
 			<form
 				method="post"
 				action="?/deleteCustomBookshelf"
-				use:enhance={handleSubmit}
+				use:enhance={handleDelete}
 			>
 				<input type="hidden" name="listName" value={selectedListToDelete} />
 				<div class="flex justify-end space-x-2">
