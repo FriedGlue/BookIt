@@ -77,6 +77,8 @@ Resources:
           AttributeType: S
         - AttributeName: isbn13
           AttributeType: S
+        - AttributeName: openLibraryId
+          AttributeType: S
       KeySchema:
         - AttributeName: bookId
           KeyType: HASH
@@ -90,6 +92,12 @@ Resources:
         - IndexName: ISBNIndex
           KeySchema:
             - AttributeName: isbn13
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: OpenLibraryIndex
+          KeySchema:
+            - AttributeName: openLibraryId
               KeyType: HASH
           Projection:
             ProjectionType: ALL
@@ -126,7 +134,8 @@ Resources:
         Variables:
           PROFILES_TABLE_NAME: !Ref ProfilesTable
           BOOKS_TABLE_NAME: !Ref BooksTable
-
+          OPEN_LIBRARY_INDEX_NAME: OpenLibraryIndex
+          ISBN_INDEX_NAME: ISBNIndex
       # DynamoDB Policies 
       Policies:
         - Statement:

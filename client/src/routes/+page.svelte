@@ -4,19 +4,71 @@
 	import { enhance } from '$app/forms';
 	import type { Book } from '$lib/types';
 	import ReadingChallenges from '$lib/components/ReadingChallenges.svelte';
+	import { onMount } from 'svelte';
 
 	export let data: PageData;
 
 	let modalVisible = false;
+	let showProgressTypeMenu = false;
+	let progressType: 'pages' | 'percentage' = 'pages';
+	let percentComplete: number;
+	let menuButtonRef: HTMLButtonElement;
+	let menuRef: HTMLDivElement;
 
 	// The selectedBook here is the raw Book object from the API.
 	let selectedBook: Book | null = null;
 	let newPageCount: number | '' = '';
 
+	// Handle clicks outside the menu
+	function handleClickOutside(event: MouseEvent) {
+		if (showProgressTypeMenu && menuRef && menuButtonRef) {
+			const target = event.target as Node;
+			if (!menuRef.contains(target) && !menuButtonRef.contains(target)) {
+				showProgressTypeMenu = false;
+			}
+		}
+	}
+
+	onMount(() => {
+		window.addEventListener('click', handleClickOutside);
+		return () => {
+			window.removeEventListener('click', handleClickOutside);
+		};
+	});
+
+	function getProgressTypeKey(bookId: string) {
+		return `preferredProgressType_${bookId}`;
+	}
+
+	// Function to update progress type and save preference
+	function updateProgressType(type: 'pages' | 'percentage') {
+		if (selectedBook?.bookId) {
+			progressType = type;
+			localStorage.setItem(getProgressTypeKey(selectedBook.bookId), type);
+		}
+		showProgressTypeMenu = false;
+	}
+
 	// Open the modal – note that we pass the raw Book object.
 	function openModal(book: Book) {
 		selectedBook = book;
-		newPageCount = '';
+		// Reset to default first
+		progressType = 'pages';
+		// Then load book-specific progress type preference
+		if (book.bookId) {
+			const savedProgressType = localStorage.getItem(getProgressTypeKey(book.bookId));
+			if (savedProgressType === 'pages' || savedProgressType === 'percentage') {
+				progressType = savedProgressType;
+			}
+		}
+		// Initialize with current progress
+		if (book.progress) {
+			newPageCount = book.progress.lastPageRead;
+			percentComplete = book.progress.percentage || (book.progress.lastPageRead / book.totalPages) * 100;
+		} else {
+			newPageCount = '';
+			percentComplete = 0;
+		}
 		modalVisible = true;
 	}
 
@@ -24,6 +76,7 @@
 		modalVisible = false;
 		selectedBook = null;
 		newPageCount = '';
+		progressType = 'pages'; // Reset to default when closing
 	}
 
 	// Add this calculation before the template
@@ -336,18 +389,71 @@
 									</div>
 								</div>
 								<div class="mt-8">
-									<label for="newPageCount" class="block text-sm font-medium text-gray-700">
-										New Page Count
-									</label>
-									<input
-										id="newPageCount"
-										type="number"
-										min={selectedBook.progress?.lastPageRead || 0}
-										bind:value={newPageCount}
-										class="mt-4 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-										placeholder="Enter new page count"
-										required
-									/>
+									<div class="relative">
+										<button
+											type="button"
+											bind:this={menuButtonRef}
+											class="mb-4 inline-flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+											on:click|stopPropagation={() => showProgressTypeMenu = !showProgressTypeMenu}
+										>
+											{progressType === 'pages' ? 'Update by Page Count' : 'Update by Percentage'}
+											<svg class="ml-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+												<path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+											</svg>
+										</button>
+										
+										{#if showProgressTypeMenu}
+											<div 
+												bind:this={menuRef}
+												class="absolute z-10 mt-1 w-full rounded-md bg-white shadow-lg"
+											>
+												<div class="py-1">
+													<button
+														class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+														on:click={() => updateProgressType('pages')}
+													>
+														Update by Page Count
+													</button>
+													<button
+														class="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+														on:click={() => updateProgressType('percentage')}
+													>
+														Update by Percentage
+													</button>
+												</div>
+											</div>
+										{/if}
+									</div>
+
+									{#if progressType === 'pages'}
+										<label for="newPageCount" class="block text-sm font-medium text-gray-700">
+											New Page Count
+										</label>
+										<input
+											id="newPageCount"
+											type="number"
+											min={selectedBook.progress?.lastPageRead || 0}
+											max={selectedBook.totalPages}
+											bind:value={newPageCount}
+											class="mt-4 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+											placeholder="Enter new page count"
+											required
+										/>
+									{:else}
+										<label for="percentComplete" class="block text-sm font-medium text-gray-700">
+											Percentage Complete
+										</label>
+										<input
+											id="percentComplete"
+											type="number"
+											min="0"
+											max="100"
+											bind:value={percentComplete}
+											class="mt-4 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+											placeholder="Enter percentage (0-100)"
+											required
+										/>
+									{/if}
 								</div>
 							</div>
 						</div>
@@ -364,7 +470,7 @@
 							on:submit|preventDefault={() => closeModal()}
 						>
 							<input type="hidden" name="bookId" value={selectedBook.bookId} />
-							<input type="hidden" name="newPageCount" value={newPageCount} />
+							<input type="hidden" name="newPageCount" value={progressType === 'pages' ? newPageCount : Math.round((percentComplete / 100) * selectedBook.totalPages)} />
 							<button
 								type="submit"
 								class="inline-flex w-full justify-center rounded-md bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:w-auto"

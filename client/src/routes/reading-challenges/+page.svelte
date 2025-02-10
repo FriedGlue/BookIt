@@ -80,17 +80,17 @@
     function getSuggestions() {
         const suggestions = [];
         const currentDate = new Date();
-        const nextYear = currentDate.getFullYear() + 1;
+        const currentYear = currentDate.getFullYear();
         const currentMonth = currentDate.toLocaleString('default', { month: 'long' });
         
         if (!hasExistingChallenge('YEAR')) {
             suggestions.push({
-                name: `${nextYear} Reading Challenge`,
+                name: `${currentYear} Reading Challenge`,
                 type: 'BOOKS',
                 timeframe: 'YEAR',
                 target: '52',
-                startDate: `${nextYear}-01-01`,
-                description: `Read 52 books in ${nextYear}`
+                startDate: `${currentYear}-01-01`,
+                description: `Read 52 books this year`
             });
         }
         

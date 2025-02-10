@@ -14,21 +14,20 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
 )
 
-const ISBN_INDEX_NAME = "ISBNIndex"
-
 func SearchBooks(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
 	// Grab query params, e.g. ?isbn=XXX or ?q=someTitle
 	isbn := request.QueryStringParameters["isbn"]
 	q := request.QueryStringParameters["q"]
 	bookId := request.QueryStringParameters["bookId"]
+	openLibraryId := request.QueryStringParameters["openLibraryId"]
 
 	// If you want separate params for title, author, etc. you could parse them here:
 	// titleParam := request.QueryStringParameters["title"]
 	// authorParam := request.QueryStringParameters["author"]
 	// etc.
 
-	if isbn == "" && q == "" && bookId == "" {
-		return shared.ErrorResponse(400, "Please provide at least one search parameter (?isbn= or ?q= or ?bookId=).")
+	if isbn == "" && q == "" && bookId == "" && openLibraryId == "" {
+		return shared.ErrorResponse(400, "Please provide at least one search parameter (?isbn= or ?q= or ?bookId= or ?openLibraryId=).")
 	}
 
 	svc := shared.DynamoDBClient()
@@ -47,6 +46,12 @@ func SearchBooks(request events.APIGatewayProxyRequest) events.APIGatewayProxyRe
 		if err != nil {
 			log.Printf("Error searching by ISBN: %v\n", err)
 			return shared.ErrorResponse(500, fmt.Sprintf("Error searching by ISBN: %v", err))
+		}
+	} else if openLibraryId != "" {
+		books, err = searchByOpenLibraryId(svc, openLibraryId)
+		if err != nil {
+			log.Printf("Error searching by openLibraryId: %v\n", err)
+			return shared.ErrorResponse(500, fmt.Sprintf("Error searching by openLibraryId: %v", err))
 		}
 	} else {
 		// 2) If a general query (q) is provided, do a partial match on 'titleLowercase' or do a scan:
@@ -117,6 +122,37 @@ func searchByBookId(svc *dynamodb.DynamoDB, bookId string) ([]BookData, error) {
 	}
 
 	return []BookData{book}, nil
+}
+
+// Exact bookId lookup using primary key
+func searchByOpenLibraryId(svc *dynamodb.DynamoDB, openLibraryId string) ([]BookData, error) {
+	log.Printf("Searching for book with OpenLibrary ID: %s", openLibraryId)
+
+	input := &dynamodb.QueryInput{
+		TableName:              aws.String(BOOKS_TABLE_NAME),
+		IndexName:              aws.String(OPEN_LIBRARY_INDEX_NAME), // "OpenLibraryIndex"
+		KeyConditionExpression: aws.String("openLibraryId = :openLibraryId"),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":openLibraryId": {S: aws.String(openLibraryId)},
+		},
+	}
+
+	result, err := svc.Query(input)
+	if err != nil {
+		return nil, err
+	}
+
+	var books []BookData
+	if err := dynamodbattribute.UnmarshalListOfMaps(result.Items, &books); err != nil {
+		return nil, err
+	}
+
+	if len(books) == 0 {
+		return nil, fmt.Errorf("no book found with OpenLibrary ID: %s", openLibraryId)
+	}
+
+	// Return just the first book since we expect only one match
+	return []BookData{books[0]}, nil
 }
 
 // Partial match on 'titleLowercase' with "contains(...)"

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/FriedGlue/BookIt/api/pkg/shared"
@@ -17,6 +18,13 @@ import (
 
 // For this example, we'll call our DynamoDB table "Books"
 // with a partition key named "isbn" (string).
+
+var (
+	PROFILES_TABLE_NAME     = os.Getenv("PROFILES_TABLE_NAME")     // e.g. "UserProfiles"
+	BOOKS_TABLE_NAME        = os.Getenv("BOOKS_TABLE_NAME")        // e.g. "UserProfiles"
+	OPEN_LIBRARY_INDEX_NAME = os.Getenv("OPEN_LIBRARY_INDEX_NAME") // e.g. "OpenLibraryIndex"
+	ISBN_INDEX_NAME         = os.Getenv("ISBN_INDEX_NAME")         // e.g. "ISBNIndex"
+)
 
 // Book represents a single book record in DynamoDB.
 type BookData struct {
@@ -318,7 +326,7 @@ func DeleteBook(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 
 	svc := shared.DynamoDBClient()
 	input := &dynamodb.DeleteItemInput{
-		TableName: aws.String("Books"),
+		TableName: aws.String(BOOKS_TABLE_NAME),
 		Key: map[string]*dynamodb.AttributeValue{
 			"isbn": {S: aws.String(isbn)},
 		},

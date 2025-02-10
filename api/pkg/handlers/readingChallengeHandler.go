@@ -34,8 +34,9 @@ func CreateChallenge(request events.APIGatewayProxyRequest) events.APIGatewayPro
 	// Initialize challenge fields
 	challenge.ID = uuid.New().String()
 	challenge.UserID = userID
-	challenge.CreatedAt = time.Now()
-	challenge.UpdatedAt = time.Now()
+	now := time.Now()
+	challenge.CreatedAt = now
+	challenge.UpdatedAt = now
 
 	// Calculate required rate and initialize progress.
 	requiredRate, unit := calculateRequiredRate(challenge)
@@ -58,15 +59,7 @@ func CreateChallenge(request events.APIGatewayProxyRequest) events.APIGatewayPro
 		},
 	}
 
-	// If the challenge start date is in the past and no progress has been made,
-	// update the schedule status accordingly.
-	if time.Now().After(challenge.StartDate) && challenge.Progress.Current == 0 {
-		scheduleDiff, status := calculateScheduleStatus(challenge)
-		challenge.Progress.Rate.ScheduleDiff = scheduleDiff
-		challenge.Progress.Rate.Status = status
-	}
-
-	// Fetch the user's profile from DynamoDB using the user ID (stored as "_id")
+	// Retrieve the user's profile from DynamoDB using the user ID (stored as "_id")
 	svc := shared.DynamoDBClient()
 	getInput := &dynamodb.GetItemInput{
 		TableName: aws.String(ProfilesTableName),
@@ -85,6 +78,19 @@ func CreateChallenge(request events.APIGatewayProxyRequest) events.APIGatewayPro
 	var profile models.Profile
 	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
 		return shared.ErrorResponse(500, "Error unmarshalling profile")
+	}
+
+	//  If the challenge start date is in the past, check the reading log for existing progress ***
+	if now.After(challenge.StartDate) {
+		aggProgress := aggregateChallengeProgress(&profile, challenge)
+		challenge.Progress.Current = aggProgress
+		if challenge.Target != 0 {
+			challenge.Progress.Percentage = float64(aggProgress) / float64(challenge.Target) * 100
+		}
+		challenge.Progress.Rate.CurrentPace = calculateCurrentPace(challenge, now)
+		scheduleDiff, status := calculateScheduleStatus(challenge, now)
+		challenge.Progress.Rate.ScheduleDiff = scheduleDiff
+		challenge.Progress.Rate.Status = status
 	}
 
 	// Append the new challenge to the profile's Challenges slice
@@ -176,57 +182,6 @@ func calculateRequiredRate(challenge models.ReadingChallenge) (float64, string) 
 	return rate, unit
 }
 
-// calculateCurrentPace computes the actual reading pace
-func calculateCurrentPace(challenge models.ReadingChallenge) float64 {
-	duration := time.Now().Sub(challenge.StartDate)
-	var divisor float64
-
-	switch challenge.TimeFrame {
-	case models.YearTimeFrame:
-		divisor = float64(duration.Hours()) / (24 * 30) // months
-	case models.MonthTimeFrame:
-		divisor = float64(duration.Hours()) / (24 * 7) // weeks
-	case models.WeekTimeFrame:
-		divisor = float64(duration.Hours()) / 24 // days
-	}
-
-	if divisor == 0 {
-		return 0
-	}
-
-	return math.Round(float64(challenge.Progress.Current)/divisor*100) / 100
-}
-
-// calculateScheduleStatus determines if ahead/behind and by how much.
-func calculateScheduleStatus(challenge models.ReadingChallenge) (float64, string) {
-	duration := time.Now().Sub(challenge.StartDate)
-	totalDuration := challenge.EndDate.Sub(challenge.StartDate)
-
-	// Calculate expected progress at this point.
-	expectedProgress := float64(challenge.Target) * (float64(duration) / float64(totalDuration))
-	actualProgress := float64(challenge.Progress.Current)
-
-	// If no progress and at least one minute has elapsed since the challenge started,
-	// mark the challenge as behind schedule.
-	if actualProgress == 0 && time.Since(challenge.StartDate) > time.Minute {
-		return expectedProgress, "BEHIND"
-	}
-
-	// Calculate the progress difference.
-	progressDiff := actualProgress - expectedProgress
-
-	// If the difference is negligible, consider it on track.
-	if math.Abs(progressDiff) < 0.01 {
-		return 0, "ON_TRACK"
-	}
-
-	// Return the absolute difference and status.
-	if progressDiff > 0 {
-		return progressDiff, "AHEAD"
-	}
-	return math.Abs(progressDiff), "BEHIND"
-}
-
 // UpdateChallenge updates a specific reading challenge within the profile.
 func UpdateChallenge(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
 	log.Println("UpdateChallenge invoked")
@@ -237,7 +192,6 @@ func UpdateChallenge(request events.APIGatewayProxyRequest) events.APIGatewayPro
 		return shared.ErrorResponse(401, err.Error())
 	}
 
-	// Define the update payload structure
 	var updateData struct {
 		Current int `json:"current"`
 	}
@@ -246,7 +200,6 @@ func UpdateChallenge(request events.APIGatewayProxyRequest) events.APIGatewayPro
 	}
 
 	svc := shared.DynamoDBClient()
-	// Retrieve the user's profile
 	getInput := &dynamodb.GetItemInput{
 		TableName: aws.String(ProfilesTableName),
 		Key: map[string]*dynamodb.AttributeValue{
@@ -266,25 +219,28 @@ func UpdateChallenge(request events.APIGatewayProxyRequest) events.APIGatewayPro
 		return shared.ErrorResponse(500, "Error unmarshalling profile")
 	}
 
-	// Locate and update the specified challenge in the profile
+	// Use a common 'now' for all calculations.
+	now := time.Now()
+
 	found := false
 	for i, ch := range profile.Challenges {
 		if ch.ID == challengeID {
-			profile.Challenges[i].Progress.Current = updateData.Current
-			if profile.Challenges[i].Target != 0 {
-				profile.Challenges[i].Progress.Percentage = float64(updateData.Current) / float64(profile.Challenges[i].Target) * 100
+			// Update progress using the aggregated value from the reading log.
+			aggProgress := aggregateChallengeProgress(&profile, ch)
+			profile.Challenges[i].Progress.Current = aggProgress
+			if ch.Target != 0 {
+				profile.Challenges[i].Progress.Percentage = float64(aggProgress) / float64(ch.Target) * 100
 			}
 
-			// Calculate and update current reading pace
-			profile.Challenges[i].Progress.Rate.CurrentPace = calculateCurrentPace(profile.Challenges[i])
+			// Update the reading pace with the common 'now'
+			profile.Challenges[i].Progress.Rate.CurrentPace = calculateCurrentPace(profile.Challenges[i], now)
 
-			// Calculate cumulative schedule difference and status,
-			// then store in the new ScheduleDiff field.
-			scheduleDiff, status := calculateScheduleStatus(profile.Challenges[i])
+			// Update schedule difference and status.
+			scheduleDiff, status := calculateScheduleStatus(profile.Challenges[i], now)
 			profile.Challenges[i].Progress.Rate.ScheduleDiff = scheduleDiff
 			profile.Challenges[i].Progress.Rate.Status = status
 
-			profile.Challenges[i].UpdatedAt = time.Now()
+			profile.Challenges[i].UpdatedAt = now
 			found = true
 			break
 		}
@@ -293,7 +249,6 @@ func UpdateChallenge(request events.APIGatewayProxyRequest) events.APIGatewayPro
 		return shared.ErrorResponse(404, "Challenge not found")
 	}
 
-	// Write the updated profile back to DynamoDB
 	updatedProfile, err := dynamodbattribute.MarshalMap(profile)
 	if err != nil {
 		return shared.ErrorResponse(500, "Error marshalling updated profile")
@@ -391,11 +346,11 @@ func updateChallenges(profile *models.Profile) {
 		}
 
 		// Update the reading pace. (calculateCurrentPace should use the challenge's start date and current progress.)
-		currentPace := calculateCurrentPace(ch)
+		currentPace := calculateCurrentPace(ch, now)
 		profile.Challenges[i].Progress.Rate.CurrentPace = currentPace
 
 		// Calculate the schedule difference and status.
-		scheduleDiff, status := calculateScheduleStatus(ch)
+		scheduleDiff, status := calculateScheduleStatus(ch, now)
 		profile.Challenges[i].Progress.Rate.ScheduleDiff = scheduleDiff
 		profile.Challenges[i].Progress.Rate.Status = status
 
@@ -406,30 +361,96 @@ func updateChallenges(profile *models.Profile) {
 	}
 }
 
+// calculateCurrentPace computes the actual reading pace using the passed-in time.
+func calculateCurrentPace(challenge models.ReadingChallenge, now time.Time) float64 {
+	duration := now.Sub(challenge.StartDate)
+	var divisor float64
+
+	switch challenge.TimeFrame {
+	case models.YearTimeFrame:
+		divisor = float64(duration.Hours()) / (24 * 30) // months
+	case models.MonthTimeFrame:
+		divisor = float64(duration.Hours()) / (24 * 7) // weeks
+	case models.WeekTimeFrame:
+		divisor = float64(duration.Hours()) / 24 // days
+	}
+
+	if divisor == 0 {
+		return 0
+	}
+
+	// Use the already updated Progress.Current in the challenge.
+	return math.Round(float64(challenge.Progress.Current)/divisor*100) / 100
+}
+
+// calculateScheduleStatus determines if ahead/behind and by how much using the passed-in time.
+func calculateScheduleStatus(challenge models.ReadingChallenge, now time.Time) (float64, string) {
+	duration := now.Sub(challenge.StartDate)
+	totalDuration := challenge.EndDate.Sub(challenge.StartDate)
+
+	// Calculate expected progress at this point.
+	expectedProgress := float64(challenge.Target) * (float64(duration) / float64(totalDuration))
+	actualProgress := float64(challenge.Progress.Current)
+
+	// If no progress and at least one minute has elapsed since the challenge started,
+	// mark the challenge as behind schedule.
+	if actualProgress == 0 {
+		return expectedProgress, "BEHIND"
+	}
+
+	// Calculate the progress difference.
+	progressDiff := actualProgress - expectedProgress
+
+	// If the difference is negligible, consider it on track.
+	if math.Abs(progressDiff) <= 0.15 {
+		return 0, "ON_TRACK"
+	}
+
+	// Return the absolute difference and status.
+	if progressDiff > 0 {
+		return progressDiff, "AHEAD"
+	}
+	return math.Abs(progressDiff), "BEHIND"
+}
+
 // aggregateChallengeProgress aggregates the total progress for a given challenge.
-// It differentiates based on the challenge type (books vs pages) and logs the result.
-// For a books challenge, it counts the number of reading log entries with a note of "Book Finished".
-// For a pages challenge, it sums the PagesRead values.
+// It only counts reading log entries with a Date on or after the challenge's start date.
 func aggregateChallengeProgress(profile *models.Profile, challenge models.ReadingChallenge) int {
 	total := 0
 	switch challenge.Type {
 	case models.BooksChallenge:
-		// For a books challenge, count the number of log entries that indicate a book was completed.
+		// For a books challenge, count log entries that indicate a completed book.
 		for _, logEntry := range profile.ReadingLog {
-			// Adjust the logic as needed to match your book‐completion criteria.
+			// Parse the date string into time.Time
+			logDate, err := time.Parse(time.RFC3339, logEntry.Date)
+			if err != nil {
+				log.Printf("Error parsing date for log entry: %v", err)
+				continue
+			}
+			if logDate.Before(challenge.StartDate) {
+				continue
+			}
 			if logEntry.Notes == "Book Finished" {
 				total++
 			}
 		}
 		log.Printf("Challenge %s (Books): total completed books = %d", challenge.ID, total)
 	case models.PagesChallenge:
-		// For a pages challenge, sum the pages read.
+		// For a pages challenge, sum the pages read from the appropriate log entries.
 		for _, logEntry := range profile.ReadingLog {
+			// Parse the date string into time.Time
+			logDate, err := time.Parse(time.RFC3339, logEntry.Date)
+			if err != nil {
+				log.Printf("Error parsing date for log entry: %v", err)
+				continue
+			}
+			if logDate.Before(challenge.StartDate) {
+				continue
+			}
 			total += logEntry.PagesRead
 		}
 		log.Printf("Challenge %s (Pages): total pages read = %d", challenge.ID, total)
 	default:
-		// If you have other types or want a default behavior, you could add it here.
 		log.Printf("Challenge %s: unknown type %s; defaulting aggregated progress to 0", challenge.ID, challenge.Type)
 	}
 	return total

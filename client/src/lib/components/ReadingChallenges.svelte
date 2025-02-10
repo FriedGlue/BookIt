@@ -20,7 +20,7 @@
 			return "0.00";
 		}
 		// If the value is extremely small, just return "0.00"
-		if (Math.abs(rate) < 0.01) {
+		if (Math.abs(rate) < 0.24) {
 			return "0.00";
 		}
 		if (showExact) {

@@ -296,6 +296,9 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 	log.Printf("Calculated new progress percentage: %.2f%% for currentPage: %d and totalPages: %d\n",
 		newProgressPercentage, updateReq.CurrentPage, storedBook.Book.TotalPages)
 
+	// Calculate the number of pages read
+	pagesRead := updateReq.CurrentPage - storedBook.Book.Progress.LastPageRead
+
 	// Update the progress data in the storedBook
 	storedBook.Book.Progress.LastPageRead = updateReq.CurrentPage
 	storedBook.Book.Progress.Percentage = newProgressPercentage
@@ -318,7 +321,7 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 		BookID:        storedBook.Book.BookID,
 		Title:         storedBook.Book.Title,
 		BookThumbnail: storedBook.Book.Thumbnail,
-		PagesRead:     updateReq.CurrentPage,
+		PagesRead:     pagesRead,
 		Notes:         updateReq.Notes,
 	}
 	profile.ReadingLog = append(profile.ReadingLog, logEntry)

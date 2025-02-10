@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/FriedGlue/BookIt/api/pkg/models"
 	"github.com/FriedGlue/BookIt/api/pkg/shared"
@@ -12,12 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-)
-
-// We'll read this from environment variables or pass it in at deploy time
-var (
-	PROFILES_TABLE_NAME = os.Getenv("PROFILES_TABLE_NAME") // e.g. "UserProfiles"
-	BOOKS_TABLE_NAME    = os.Getenv("BOOKS_TABLE_NAME")    // e.g. "UserProfiles"
 )
 
 // ----------------------- Handlers -----------------------

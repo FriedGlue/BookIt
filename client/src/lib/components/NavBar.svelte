@@ -97,6 +97,8 @@
 				await preloadImage(book.thumbnail);
 			}
 
+			console.log('Book details:', book);
+
 			const newPath = `/books/${book.bookId}`;
 
 			await goto(newPath, { invalidateAll: true });
@@ -131,7 +133,7 @@
 							class="flex w-full cursor-pointer items-center space-x-4 p-4 text-left hover:bg-gray-100"
 							on:click|preventDefault={() => handleBookNavigation(book)}
 						>
-							{#if book.thumbnail}
+							<!-- {#if book.thumbnail}
 								<div class="h-16 w-12">
 									<img
 										src={book.thumbnail}
@@ -140,7 +142,7 @@
 										transition:fade={{ duration: 200 }}
 									/>
 								</div>
-							{/if}
+							{/if} -->
 							<div>
 								<h3 class="font-medium text-gray-900">{book.title}</h3>
 								<p class="text-sm text-gray-600">
