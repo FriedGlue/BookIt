@@ -2,6 +2,9 @@ import { PUBLIC_API_BASE_URL } from '$env/static/public';
 import { isAuthenticated } from '$lib/stores/authStore';
 import { goto } from '$app/navigation';
 
+// Set initial authentication state to false
+isAuthenticated.set(false);
+
 export class AuthService {
 	async login(username: string, password: string): Promise<void> {
 		const response = await fetch(`${PUBLIC_API_BASE_URL}/auth/signin`, {
