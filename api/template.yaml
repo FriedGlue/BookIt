@@ -126,7 +126,7 @@ Resources:
       FunctionName: !Sub Orchestrator-${StageName}
       Runtime: provided.al2
       Handler: bootstrap
-      CodeUri: cmd/orchestrator/bootstrap
+      CodeUri: cmd/orchestrator
       PackageType: Zip
       Architectures:
         - arm64
@@ -261,7 +261,7 @@ Resources:
       FunctionName: !Sub Auth-${StageName}
       Runtime: provided.al2
       Handler: bootstrap
-      CodeUri: cmd/auth/bootstrap
+      CodeUri: cmd/auth
       PackageType: Zip
       Architectures:
         - arm64
