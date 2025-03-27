@@ -87,20 +87,20 @@
 <div class="flex flex-grow flex-col">
 	<main class="flex-grow">
 		<!-- Current Reads Section -->
-		<section class="mx-8 mt-16 flex flex-col items-start px-4 md:mx-16 lg:mx-40">
+		<section class="mx-2 mt-8 flex flex-col items-start px-2 md:mx-16 lg:mx-40">
 			{#if !data.profile || !data.profile.currentlyReading || data.profile.currentlyReading.length === 0}
 				<div class="flex w-full items-center justify-center py-16">
 					<p class="text-4xl text-gray-500">No Books In Progress... Get To Reading!</p>
 				</div>
 			{:else}
-				<div class="grid w-full grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+				<div class="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 					{#each data.profile.currentlyReading as reading}
 						{#if reading.Book}
 							<div
 								class="flex w-full transform flex-col overflow-hidden rounded-lg shadow-lg duration-300 hover:scale-105"
 							>
 								<div
-									class="flex h-64 w-full items-center justify-center bg-gray-300 md:h-72 lg:h-64"
+									class="flex h-48 w-full items-center justify-center bg-gray-300 sm:h-64 md:h-72 lg:h-64"
 								>
 									{#if reading.Book.bookId}
 										<img
@@ -164,7 +164,7 @@
 		<hr class="my-16 border-gray-300" />
 
 		<!---Reading Challenge-->
-		<section class="mx-8 mt-16 flex flex-col items-center py-4 md:mx-16 lg:mx-40">
+		<section class="mx-2 mt-8 flex flex-col items-center py-4 md:mx-16 lg:mx-40">
 			{#if data.profile?.challenges && data.profile.challenges.length > 0}
 				<ReadingChallenges challenges={data.profile.challenges} />
 			{:else}
@@ -178,9 +178,9 @@
 		<hr class="my-8 border-gray-300" />
 
 		<!-- To Be Read Section -->
-		<section class="mx-8 mt-16 flex flex-col items-start py-4 md:mx-16 lg:mx-40">
-			<div class="mb-8 w-full text-left">
-				<h1 class="text-4xl font-bold text-gray-600 md:text-5xl lg:text-4xl">
+		<section class="mx-2 mt-8 flex flex-col items-start py-4 md:mx-16 lg:mx-40">
+			<div class="mb-4 w-full text-left sm:mb-8">
+				<h1 class="text-2xl font-bold text-gray-600 sm:text-4xl md:text-5xl lg:text-4xl">
 					To Be Read ({data.profile?.lists?.toBeRead?.length ?? 0})
 				</h1>
 				<a
@@ -195,7 +195,7 @@
 				</div>
 			{:else}
 				<!-- Grid Container -->
-				<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+				<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
 					{#each (data.profile.lists.toBeRead.slice(0, 4) || []).reverse() as book}
 						<div class="flex flex-col">
 							<div
@@ -208,7 +208,7 @@
 									decoding="async"
 									style="opacity: 0; transition: opacity 0.3s"
 									on:load={(e) => ((e.currentTarget as HTMLImageElement).style.opacity = '1')}
-									class="h-64 w-full rounded-lg sm:h-72 md:h-80 lg:h-64"
+									class="h-48 w-full rounded-lg sm:h-64 md:h-80 lg:h-64"
 								/>
 								<div
 									class="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg bg-black/50 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
@@ -258,9 +258,9 @@
 		</section>
 
 		<!-- Read Section -->
-		<section class="mx-8 mt-16 flex flex-col items-start px-4 md:mx-16 lg:mx-40">
-			<div class="mb-8 w-full text-left">
-				<h1 class="text-4xl font-bold text-gray-600 md:text-5xl lg:text-4xl">
+		<section class="mx-2 mt-8 flex flex-col items-start px-2 md:mx-16 lg:mx-40">
+			<div class="mb-4 w-full text-left sm:mb-8">
+				<h1 class="text-2xl font-bold text-gray-600 sm:text-4xl md:text-5xl lg:text-4xl">
 					Read ({data.profile?.lists?.read?.length ?? 0})
 				</h1>
 				<a
@@ -275,7 +275,7 @@
 				</div>
 			{:else}
 				<!-- Grid Container -->
-				<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+				<div class="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
 					{#each (data.profile.lists.read.slice(0, 4) || []).reverse() as book}
 						<div class="flex flex-col">
 							<div
@@ -288,7 +288,7 @@
 									decoding="async"
 									style="opacity: 0; transition: opacity 0.3s"
 									on:load={(e) => ((e.currentTarget as HTMLImageElement).style.opacity = '1')}
-									class="h-64 w-full rounded-lg sm:h-72 md:h-80 lg:h-64"
+									class="h-48 w-full rounded-lg sm:h-64 md:h-80 lg:h-64"
 								/>
 								<div
 									class="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg bg-black/50 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
@@ -347,7 +347,7 @@
 		<div class="fixed inset-0 bg-gray-500/75 transition-opacity" aria-hidden="true"></div>
 
 		<div class="fixed inset-0 z-10 w-screen overflow-y-auto">
-			<div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+			<div class="flex min-h-full items-end justify-center p-2 text-center sm:items-center sm:p-0">
 				<div
 					class="relative transform overflow-hidden rounded-lg bg-white py-4 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg"
 				>
@@ -460,67 +460,69 @@
 					</div>
 
 					<!-- Footer with action buttons -->
-					<div class="bg-gray-50 px-8 py-6 sm:flex sm:flex-row-reverse">
-						<!-- Form for 'updateProgress' -->
-						<form
-							method="post"
-							action="?/updateProgress"
-							class="inline-flex w-full justify-center sm:ml-3 sm:w-auto"
-							use:enhance
-							on:submit|preventDefault={() => closeModal()}
-						>
-							<input type="hidden" name="bookId" value={selectedBook.bookId} />
-							<input type="hidden" name="newPageCount" value={progressType === 'pages' ? newPageCount : Math.round((percentComplete / 100) * selectedBook.totalPages)} />
-							<button
-								type="submit"
-								class="inline-flex w-full justify-center rounded-md bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:w-auto"
+					<div class="bg-gray-50 px-4 py-4 sm:px-8 sm:py-6">
+						<div class="flex flex-col gap-2 sm:flex-row-reverse sm:gap-3">
+							<!-- Form for 'updateProgress' -->
+							<form
+								method="post"
+								action="?/updateProgress"
+								class="w-full sm:ml-3 sm:w-auto"
+								use:enhance
+								on:submit|preventDefault={() => closeModal()}
 							>
-								Update
-							</button>
-						</form>
+								<input type="hidden" name="bookId" value={selectedBook.bookId} />
+								<input type="hidden" name="newPageCount" value={progressType === 'pages' ? newPageCount : Math.round((percentComplete / 100) * selectedBook.totalPages)} />
+								<button
+									type="submit"
+									class="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:w-auto sm:px-5 sm:py-3"
+								>
+									Update
+								</button>
+							</form>
 
-						<!-- Form for 'finishReading' -->
-						<form
-							method="post"
-							action="?/finishBook"
-							class="mt-3 inline-flex w-full justify-center sm:ml-3 sm:mt-0 sm:w-auto"
-							use:enhance
-							on:submit|preventDefault={() => closeModal()}
-						>
-							<input type="hidden" name="bookId" value={selectedBook.bookId} />
-							<button
-								type="submit"
-								class="inline-flex w-full justify-center rounded-md bg-green-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:w-auto"
+							<!-- Form for 'finishReading' -->
+							<form
+								method="post"
+								action="?/finishBook"
+								class="mt-3 w-full sm:ml-3 sm:mt-0 sm:w-auto"
+								use:enhance
+								on:submit|preventDefault={() => closeModal()}
 							>
-								Finish Book
-							</button>
-						</form>
+								<input type="hidden" name="bookId" value={selectedBook.bookId} />
+								<button
+									type="submit"
+									class="w-full rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:w-auto sm:px-5 sm:py-3"
+								>
+									Finish Book
+								</button>
+							</form>
 
-						<!-- Form for removing from Currently Reading -->
-						<form
-							method="post"
-							action="?/removeFromCurrentlyReading"
-							class="mt-3 inline-flex w-full justify-center sm:ml-3 sm:mt-0 sm:w-auto"
-							use:enhance
-							on:submit|preventDefault={() => closeModal()}
-						>
-							<input type="hidden" name="bookId" value={selectedBook.bookId} />
-							<button
-								type="submit"
-								class="inline-flex w-full justify-center rounded-md bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:w-auto"
+							<!-- Form for removing from Currently Reading -->
+							<form
+								method="post"
+								action="?/removeFromCurrentlyReading"
+								class="mt-3 w-full sm:ml-3 sm:mt-0 sm:w-auto"
+								use:enhance
+								on:submit|preventDefault={() => closeModal()}
 							>
-								Remove
-							</button>
-						</form>
+								<input type="hidden" name="bookId" value={selectedBook.bookId} />
+								<button
+									type="submit"
+									class="w-full rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:w-auto sm:px-5 sm:py-3"
+								>
+									Remove
+								</button>
+							</form>
 
-						<!-- Cancel button -->
-						<button
-							type="button"
-							class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-5 py-3 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:ml-3 sm:mt-0 sm:w-auto"
-							on:click={closeModal}
-						>
-							Cancel
-						</button>
+							<!-- Cancel button -->
+							<button
+								type="button"
+								class="w-full rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:w-auto sm:px-5 sm:py-3"
+								on:click={closeModal}
+							>
+								Cancel
+							</button>
+						</div>
 					</div>
 				</div>
 			</div>
