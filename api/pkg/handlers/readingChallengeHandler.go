@@ -385,18 +385,17 @@ func calculateCurrentPace(challenge models.ReadingChallenge, now time.Time) floa
 
 // calculateScheduleStatus determines if ahead/behind and by how much using the passed-in time.
 func calculateScheduleStatus(challenge models.ReadingChallenge, now time.Time) (float64, string) {
+	// If the challenge hasn't started yet, consider it on track
+	if now.Before(challenge.StartDate) {
+		return 0, "ON_TRACK"
+	}
+
 	duration := now.Sub(challenge.StartDate)
 	totalDuration := challenge.EndDate.Sub(challenge.StartDate)
 
 	// Calculate expected progress at this point.
 	expectedProgress := float64(challenge.Target) * (float64(duration) / float64(totalDuration))
 	actualProgress := float64(challenge.Progress.Current)
-
-	// If no progress and at least one minute has elapsed since the challenge started,
-	// mark the challenge as behind schedule.
-	if actualProgress == 0 {
-		return expectedProgress, "BEHIND"
-	}
 
 	// Calculate the progress difference.
 	progressDiff := actualProgress - expectedProgress
@@ -427,7 +426,7 @@ func aggregateChallengeProgress(profile *models.Profile, challenge models.Readin
 				log.Printf("Error parsing date for log entry: %v", err)
 				continue
 			}
-			if logDate.Before(challenge.StartDate) {
+			if logDate.Before(challenge.StartDate) || logDate.After(challenge.EndDate) {
 				continue
 			}
 			if logEntry.Notes == "Book Finished" {
@@ -444,7 +443,7 @@ func aggregateChallengeProgress(profile *models.Profile, challenge models.Readin
 				log.Printf("Error parsing date for log entry: %v", err)
 				continue
 			}
-			if logDate.Before(challenge.StartDate) {
+			if logDate.Before(challenge.StartDate) || logDate.After(challenge.EndDate) {
 				continue
 			}
 			total += logEntry.PagesRead

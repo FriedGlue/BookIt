@@ -63,6 +63,62 @@ func GetProfile(request events.APIGatewayProxyRequest) events.APIGatewayProxyRes
 	}
 }
 
+// GetProfileAndUpdateReadingChallenges retrieves the user's profile from DynamoDB and updates reading challenges
+func GetProfileAndUpdateReadingChallenges(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
+	log.Println("GetProfileAndUpdateReadingChallenges invoked")
+	userId, err := shared.GetUserIDFromToken(request)
+	if err != nil {
+		log.Printf("Error extracting userId: %v\n", err)
+		return shared.ErrorResponse(401, err.Error())
+	}
+
+	svc := shared.DynamoDBClient()
+
+	input := &dynamodb.GetItemInput{
+		TableName: aws.String(PROFILES_TABLE_NAME),
+		Key: map[string]*dynamodb.AttributeValue{
+			"_id": {S: aws.String(userId)},
+		},
+	}
+
+	log.Printf("Fetching profile for userId: %s\n", userId)
+	result, err := svc.GetItem(input)
+	if err != nil {
+		log.Printf("DynamoDB GetItem error: %v\n", err)
+		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB GetItem error: %v", err))
+	}
+	if result.Item == nil {
+		log.Println("Profile not found")
+		return shared.ErrorResponse(404, "Profile not found")
+	}
+
+	var profile models.Profile
+	if err := dynamodbattribute.UnmarshalMap(result.Item, &profile); err != nil {
+		log.Printf("Error unmarshalling profile: %v\n", err)
+		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
+	}
+
+	log.Println("Profile retrieval successful")
+
+	// Update reading challenges if profile has any
+	if len(profile.Challenges) > 0 {
+		log.Printf("Updating %d reading challenges for user %s\n", len(profile.Challenges), userId)
+		updateChallenges(&profile)
+		log.Println("Profile challenges update successful")
+	}
+
+	responseBody, err := json.Marshal(profile)
+	if err != nil {
+		log.Printf("Error marshalling response: %v\n", err)
+		return shared.ErrorResponse(500, "Error marshalling profile response")
+	}
+
+	return events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       string(responseBody),
+	}
+}
+
 // CreateOrUpdateProfile either creates a new profile or updates an existing one
 func CreateOrUpdateProfile(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
 	log.Println("CreateOrUpdateProfile invoked")

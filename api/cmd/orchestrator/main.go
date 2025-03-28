@@ -124,11 +124,14 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 			}
 		}
 
+	case strings.HasPrefix(path, "/getProfileExact"):
+		response = handlers.GetProfile(request)
+
 	case strings.HasPrefix(path, "/profile"):
 		// Handle /profile routes
 		switch method {
 		case "GET":
-			response = handlers.GetProfile(request)
+			response = handlers.GetProfileAndUpdateReadingChallenges(request)
 		case "POST", "PUT":
 			response = handlers.CreateOrUpdateProfile(request)
 		case "DELETE":
