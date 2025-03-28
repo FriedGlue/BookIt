@@ -34,8 +34,28 @@ func handler(ctx context.Context, request events.APIGatewayProxyRequest) (events
 	method := request.HTTPMethod
 
 	switch {
+	case request.Path == "/books/save-external-book" && request.HTTPMethod == "POST":
+		response = handlers.SaveExternalBook(request)
+
 	case path == "/books/search" && method == "GET":
 		response = handlers.SearchBooks(request)
+
+	case path == "/books/combined-search" && method == "GET":
+		response = handlers.CombinedSearch(request)
+
+	case strings.HasPrefix(path, "/books/") && method == "GET" && !strings.HasPrefix(path, "/books/search") && !strings.HasPrefix(path, "/books/combined-search") && !strings.HasPrefix(path, "/books/save-external-book"):
+		// Extract bookId from path
+		pathParts := strings.Split(path, "/")
+		if len(pathParts) > 2 {
+			bookId := pathParts[2]
+			request.PathParameters = map[string]string{"bookId": bookId}
+			response = handlers.GetBooks(request)
+		} else {
+			response = events.APIGatewayProxyResponse{
+				StatusCode: 404,
+				Body:       "Book ID not provided",
+			}
+		}
 
 	case strings.HasPrefix(path, "/books"):
 		// Handle /books routes
