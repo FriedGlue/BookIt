@@ -17,6 +17,44 @@
 	const options = ['Calendar', 'Charts & Graphs', 'List'];
 	let selectedList = 'Calendar';
 
+	// Calendar state
+	let currentDate = new Date();
+	let currentMonth = currentDate.getMonth();
+	let currentYear = currentDate.getFullYear();
+
+	// Navigate to previous month
+	function previousMonth() {
+		if (currentMonth === 0) {
+			currentMonth = 11;
+			currentYear--;
+		} else {
+			currentMonth--;
+		}
+		currentDate = new Date(currentYear, currentMonth, 1);
+	}
+
+	// Navigate to next month
+	function nextMonth() {
+		if (currentMonth === 11) {
+			currentMonth = 0;
+			currentYear++;
+		} else {
+			currentMonth++;
+		}
+		currentDate = new Date(currentYear, currentMonth, 1);
+	}
+
+	// Return to the current month
+	function goToCurrentMonth() {
+		const today = new Date();
+		currentMonth = today.getMonth();
+		currentYear = today.getFullYear();
+		currentDate = new Date(currentYear, currentMonth, 1);
+	}
+
+	// Check if viewing current month
+	$: isCurrentMonth = currentMonth === new Date().getMonth() && currentYear === new Date().getFullYear();
+
 	// -- MODAL STATE FOR CREATING/EDITING ENTRIES --
 	let showEntryForm = false;
 	let isEditingEntry = false;
@@ -45,20 +83,27 @@
 		isEditingEntry = true;
 		entryId = entry._id;
 		entryDate = new Date(entry.date).toISOString().split('T')[0];
-		title = entry.title;
 		pagesRead = entry.pagesRead?.toString() ?? '';
 		notes = entry.notes ?? '';
 		showEntryForm = true;
 	}
 
 	// Helper function to generate calendar days
-	function generateCalendarDays() {
+	function generateCalendarDays(year: number, month: number) {
 		const days = [];
-		for (let i = 1; i <= 28; i++) {
+		const firstDayOfMonth = new Date(year, month, 1);
+		const lastDayOfMonth = new Date(year, month + 1, 0);
+		const daysInMonth = lastDayOfMonth.getDate();
+		const startingDayOfWeek = firstDayOfMonth.getDay(); // 0 = Sunday, 1 = Monday, etc.
+
+		// Add days for the current month
+		for (let i = 1; i <= daysInMonth; i++) {
 			// Find reading log entries for this day
 			const dayEntries = readingLog.filter((log: ReadingLogItem) => {
 				const logDate = new Date(log.date);
-				return logDate.getDate() === i;
+				return logDate.getDate() === i && 
+				       logDate.getMonth() === month && 
+				       logDate.getFullYear() === year;
 			});
 
 			days.push({
@@ -66,10 +111,11 @@
 				entries: dayEntries
 			});
 		}
-		return days;
+		
+		return { days, startingDayOfWeek };
 	}
 
-	$: calendarDays = generateCalendarDays();
+	$: calendarData = generateCalendarDays(currentYear, currentMonth);
 </script>
 
 <div class="flex min-h-screen">
@@ -90,14 +136,14 @@
 			</div>
 		{/if}
 
-		{#if readingLog.length === 0}
+		{#if readingLog.length === 0 && selectedList !== 'Calendar'}
 			<p class="text-gray-600">No reading log entries found.</p>
 		{/if}
 
-		{#if readingLog.length > 0 && selectedList === 'Calendar'}
+		{#if selectedList === 'Calendar'}
 			<div class="my-4 flex h-full w-full flex-col justify-center gap-4">
 				<div class="my-4 flex items-center justify-center gap-4">
-					<button class="mb-4 text-2xl font-bold" aria-label="Previous month">
+					<button class="mb-4 text-2xl font-bold" aria-label="Previous month" on:click={previousMonth}>
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							class="h-6 w-6"
@@ -114,9 +160,9 @@
 						</svg>
 					</button>
 					<h1 class="mb-4 flex-grow text-center text-6xl font-bold">
-						{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+						{currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
 					</h1>
-					<button class="mb-4 text-2xl font-bold" aria-label="Next month">
+					<button class="mb-4 text-2xl font-bold" aria-label="Next month" on:click={nextMonth}>
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							class="h-6 w-6"
@@ -134,7 +180,30 @@
 					</button>
 				</div>
 
-				<div class="calendar my-32 grid grid-cols-7 gap-2 rounded-lg p-4">
+				{#if !isCurrentMonth}
+					<div class="flex justify-center mb-4">
+						<button
+							class="rounded-full bg-blue-100 px-4 py-1 text-blue-700 hover:bg-blue-200 flex items-center"
+							on:click={goToCurrentMonth}
+						>
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+								<path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" />
+							</svg>
+							Today
+						</button>
+					</div>
+				{/if}
+
+				<div class="mb-6 flex justify-end">
+					<button
+						class="rounded-full bg-blue-500 px-6 py-2 text-white hover:bg-blue-600"
+						on:click={openNewEntryForm}
+					>
+						Add Past Entry
+					</button>
+				</div>
+
+				<div class="calendar grid grid-cols-7 gap-2 rounded-lg p-4">
 					<!-- Days of the week -->
 					<div class="text-center font-bold">Sun</div>
 					<div class="text-center font-bold">Mon</div>
@@ -144,23 +213,22 @@
 					<div class="text-center font-bold">Fri</div>
 					<div class="text-center font-bold">Sat</div>
 
-					<!-- Pad the first week (assuming February starts on a Thursday) -->
-					{#each Array(6) as _}
-						<div class="h-24 border bg-gray-100 p-2"></div>
+					<!-- Pad the first week with empty cells for days before the 1st of the month -->
+					{#each Array(calendarData.startingDayOfWeek) as _, i}
+						<div class="h-24 border border-gray-200 bg-gray-50 p-2"></div>
 					{/each}
 
 					<!-- Calendar days -->
-					{#each calendarDays as day}
-						<div class="min-h-52 min-w-32 p-2">
+					{#each calendarData.days as day, i}
+						<div class="min-h-40 border border-gray-200 p-2 hover:bg-blue-50">
 							<div class="mb-2 font-bold">{day.day}</div>
 							<div class="flex flex-col gap-2">
 								{#each [...new Set(day.entries.map((e: ReadingLogItem) => e.bookThumbnail))] as thumbnail (thumbnail)}
 									<img
 										src={thumbnail as string}
-										alt={`Cover of ${day.entries.find((e: ReadingLogItem) => e.bookThumbnail === thumbnail)?.title} by ${day.entries.find((e: ReadingLogItem) => e.bookThumbnail === thumbnail)?.author}`}
-										class="h-32 w-auto rounded object-contain transition-transform hover:scale-150"
-										title={day.entries.find((e: ReadingLogItem) => e.bookThumbnail === thumbnail)
-											?.title}
+										alt="Book cover"
+										class="h-24 w-auto rounded object-contain transition-transform hover:scale-150"
+										title="Book entry"
 									/>
 								{/each}
 							</div>
@@ -184,7 +252,7 @@
 					<tr class="bg-gray-100">
 						<th class="border px-4 py-2">Date</th>
 						<th class="border px-4 py-2">Cover</th>
-						<th class="border px-4 py-2">Title</th>
+						<th class="border px-4 py-2">Book ID</th>
 						<th class="border px-4 py-2">Pages Read</th>
 						<th class="border px-4 py-2">Notes</th>
 						<th class="border px-4 py-2">Actions</th>
@@ -205,7 +273,7 @@
 									/>
 								{/if}
 							</td>
-							<td class="border px-4 py-2 text-xl">{log.title}</td>
+							<td class="border px-4 py-2 text-xl">{log.bookId}</td>
 							<td class="text-md border px-4 py-2">{log.pagesRead}</td>
 							<td class="text-md border px-4 py-2">{log.notes}</td>
 							<td class="border px-4 py-2 space-y-2">
