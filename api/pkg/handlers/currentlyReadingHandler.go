@@ -113,6 +113,8 @@ func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGate
 	for _, item := range profile.CurrentlyReading {
 		if item.Book.ISBN == newCurrentlyReadingItemRequest.ISBN || item.Book.BookID == newCurrentlyReadingItemRequest.BookID {
 			found = true
+			log.Printf("Book (ID: %s, ISBN: %s) already exists in user's currently reading list",
+				newCurrentlyReadingItemRequest.BookID, newCurrentlyReadingItemRequest.ISBN)
 			break
 		}
 	}
@@ -170,6 +172,12 @@ func AddToCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGate
 	currentlyReadingItem := models.CurrentlyReadingItem{
 		Book:        book,
 		StartedDate: time.Now().Format(time.RFC3339),
+	}
+
+	// Set a default page count if it's zero
+	if currentlyReadingItem.Book.TotalPages == 0 {
+		log.Printf("TotalPages for book is 0, setting default value of 300\n")
+		currentlyReadingItem.Book.TotalPages = 300
 	}
 
 	profile.CurrentlyReading = append(profile.CurrentlyReading, currentlyReadingItem)
@@ -287,8 +295,9 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 
 	// Calculate new progress percentage
 	if storedBook.Book.TotalPages == 0 {
-		log.Printf("TotalPages for book is 0, cannot calculate progress percentage\n")
-		return shared.ErrorResponse(400, "Book total pages cannot be zero")
+		log.Printf("TotalPages for book is 0, setting default value of 300\n")
+		// Set a default page count instead of failing
+		storedBook.Book.TotalPages = 300
 	}
 	newProgressPercentage := math.Floor(
 		float64(updateReq.CurrentPage) / float64(storedBook.Book.TotalPages) * 100,
@@ -498,31 +507,40 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 
 	// Find and remove the book from the specified list
 	found := false
-	switch startReq.ListName {
-	case "toBeRead":
-		for i, item := range profile.Lists.ToBeRead {
-			if item.BookID == startReq.BookID {
-				profile.Lists.ToBeRead = append(profile.Lists.ToBeRead[:i], profile.Lists.ToBeRead[i+1:]...)
-				found = true
-				break
-			}
-		}
-	case "read":
-		for i, item := range profile.Lists.Read {
-			if item.BookID == startReq.BookID {
-				profile.Lists.Read = append(profile.Lists.Read[:i], profile.Lists.Read[i+1:]...)
-				found = true
-				break
-			}
-		}
-	default:
-		// Check custom lists
-		if customList, exists := profile.Lists.CustomLists[startReq.ListName]; exists {
-			for i, item := range customList {
+
+	// Special case for "direct" list name - this means add directly without checking any list
+	if startReq.ListName == "direct" {
+		// When coming directly from book detail page, we don't need to look for the book in a list
+		found = true
+		log.Printf("Using direct mode - skipping list check")
+	} else {
+		// Normal flow - look for and remove from the specified list
+		switch startReq.ListName {
+		case "toBeRead":
+			for i, item := range profile.Lists.ToBeRead {
 				if item.BookID == startReq.BookID {
-					profile.Lists.CustomLists[startReq.ListName] = append(customList[:i], customList[i+1:]...)
+					profile.Lists.ToBeRead = append(profile.Lists.ToBeRead[:i], profile.Lists.ToBeRead[i+1:]...)
 					found = true
 					break
+				}
+			}
+		case "read":
+			for i, item := range profile.Lists.Read {
+				if item.BookID == startReq.BookID {
+					profile.Lists.Read = append(profile.Lists.Read[:i], profile.Lists.Read[i+1:]...)
+					found = true
+					break
+				}
+			}
+		default:
+			// Check custom lists
+			if customList, exists := profile.Lists.CustomLists[startReq.ListName]; exists {
+				for i, item := range customList {
+					if item.BookID == startReq.BookID {
+						profile.Lists.CustomLists[startReq.ListName] = append(customList[:i], customList[i+1:]...)
+						found = true
+						break
+					}
 				}
 			}
 		}
@@ -573,6 +591,12 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 		StartedDate: time.Now().Format(time.RFC3339),
 	}
 
+	// Set a default page count if it's zero
+	if currentlyReadingItem.Book.TotalPages == 0 {
+		log.Printf("TotalPages for book is 0, setting default value of 300\n")
+		currentlyReadingItem.Book.TotalPages = 300
+	}
+
 	// Add to currently reading list
 	profile.CurrentlyReading = append(profile.CurrentlyReading, currentlyReadingItem)
 
@@ -605,10 +629,25 @@ func StartReading(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 		return shared.ErrorResponse(500, fmt.Sprintf("DynamoDB PutItem error: %v", err))
 	}
 
-	log.Printf("Book moved to currently reading from %s list for user %s\n", startReq.ListName, userId)
-	return events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       fmt.Sprintf("Book moved to currently reading from %s list", startReq.ListName),
+	// Different message based on whether we moved from a list or added directly
+	if startReq.ListName == "direct" {
+		log.Printf("Book added directly to currently reading for user %s\n", userId)
+		return events.APIGatewayProxyResponse{
+			StatusCode: 200,
+			Body:       "Book added directly to currently reading list",
+		}
+	} else if found {
+		log.Printf("Book moved to currently reading from %s list for user %s\n", startReq.ListName, userId)
+		return events.APIGatewayProxyResponse{
+			StatusCode: 200,
+			Body:       fmt.Sprintf("Book moved to currently reading from %s list", startReq.ListName),
+		}
+	} else {
+		log.Printf("Book added to currently reading for user %s\n", userId)
+		return events.APIGatewayProxyResponse{
+			StatusCode: 200,
+			Body:       "Book added to currently reading list",
+		}
 	}
 }
 

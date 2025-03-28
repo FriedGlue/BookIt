@@ -125,7 +125,6 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const bookId = formData.get('bookId')?.toString();
-		const openLibraryId = formData.get('openLibraryId')?.toString();
 		const newPageCount = formData.get('newPageCount')?.toString();
 
 		if (!bookId || !newPageCount) {
@@ -135,21 +134,28 @@ export const actions: Actions = {
 		try {
 			const bookService = new BookService(token);
 			
-			// Ensure we're using the internal bookId for database operations
-			let idToUse = bookId;
-			if (bookId.startsWith('OL') && (bookId.endsWith('W') || bookId.endsWith('M'))) {
-				// This will ensure the book is saved and return the internal ID
-				const internalId = await bookService.ensureBookExists(bookId);
-				if (internalId) {
-					idToUse = internalId;
+			try {
+				await bookService.updateBookProgress(bookId, Number(newPageCount));
+				return { success: true };
+			} catch (updateErr: any) {
+				// If the error is that the book isn't in currently reading, try to add it first
+				if (updateErr.message && updateErr.message.includes('not found in currently reading list')) {
+					console.log('Book not found in currently reading list, attempting to add it first...');
+					// Add book to currently reading
+					await bookService.addToCurrentlyReading(bookId);
+					// Then try updating progress again
+					await bookService.updateBookProgress(bookId, Number(newPageCount));
+					return { success: true };
+				} else {
+					// Re-throw other errors
+					throw updateErr;
 				}
 			}
-			
-			await bookService.updateBookProgress(idToUse, Number(newPageCount));
-			return { success: true };
-		} catch (err) {
+		} catch (err: any) {
 			console.error('Failed to update progress:', err);
-			return { error: 'Failed to update progress' };
+			return { 
+				error: err.message || 'Failed to update progress'
+			};
 		}
 	},
 

@@ -30,12 +30,43 @@ export class BookService {
 	}
 
 	async updateBookProgress(bookId: string, currentPage: number): Promise<void> {
-		const response = await fetch(
-			`${PUBLIC_API_BASE_URL}/currently-reading`,
-			this.getOptions('PUT', { bookId, currentPage })
-		);
-		if (!response.ok) {
-			throw new Error('Failed to update book progress');
+		try {
+			// First ensure the book exists in our database
+			const internalBookId = await this.ensureBookExists(bookId);
+			
+			// Now update the book progress with the internal ID
+			const response = await fetch(
+				`${PUBLIC_API_BASE_URL}/currently-reading`,
+				this.getOptions('PUT', { bookId: internalBookId || bookId, currentPage })
+			);
+			
+			if (!response.ok) {
+				// Get the error details from the response if available
+				let errorMsg = 'Failed to update book progress';
+				try {
+					const errorText = await response.text();
+					console.error(`[DEBUG] Error response from update progress: ${response.status} - ${errorText}`);
+					
+					// Check for the specific "Book total pages cannot be zero" error
+					if (errorText.includes("Book total pages cannot be zero")) {
+						console.log("[DEBUG] Book has zero pages, attempting to set default page count");
+						// If the book has zero pages, attempt to update the book with a default page count
+						const book = await this.getBook(internalBookId || bookId);
+						// Try to update the book to have a default page count of 300
+						// This would need a specific endpoint to update the book, which we don't see implemented
+						// For now, we'll throw a more helpful error
+						errorMsg = "This book has no page count information. Please try adding it to your currently reading list first using the 'Start' button.";
+					} else {
+						errorMsg = `Failed to update book progress: ${response.status} - ${errorText}`;
+					}
+				} catch (e) {
+					console.error('[DEBUG] Could not parse error response:', e);
+				}
+				throw new Error(errorMsg);
+			}
+		} catch (error) {
+			console.error('Error updating book progress:', error);
+			throw error;
 		}
 	}
 
@@ -91,11 +122,22 @@ export class BookService {
 			);
 			
 			if (!response.ok) {
-				throw new Error('Failed to add book to currently reading');
+				// If it's a 409 Conflict (already in list), provide a more helpful error
+				if (response.status === 409) {
+					throw new Error('This book is already in your currently reading list');
+				}
+				
+				// For other errors, get the error message if possible
+				try {
+					const errorText = await response.text();
+					throw new Error(`Failed to add book to currently reading: ${errorText}`);
+				} catch (e) {
+					throw new Error('Failed to add book to currently reading');
+				}
 			}
 		} catch (error) {
 			console.error('Error adding book to currently reading:', error);
-			throw new Error('Failed to add book to currently reading');
+			throw error;
 		}
 	}
 

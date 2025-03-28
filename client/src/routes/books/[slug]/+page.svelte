@@ -15,6 +15,7 @@
 	let imageLoading = true;
 	let lastAddedList: string | null = null;
 	let loadingTimeout = false;
+	let startReadingError: string | null = null;
 	
 	const defaultLists = [
 		{ id: 'toBeRead', name: 'To Be Read' },
@@ -138,18 +139,25 @@
 						method="POST" 
 						use:enhance={() => {
 							isStartReading = true;
+							startReadingError = null;
 							return async ({ result }) => {
 								isStartReading = false;
 								if (result.type === 'success') {
 									// Could add a toast notification here
 								} else if (result.type === 'error') {
 									console.error('Error starting to read book:', result.error);
+									if (typeof result.error === 'string' && result.error.includes('already in your currently reading list')) {
+										startReadingError = 'This book is already in your currently reading list';
+									} else {
+										startReadingError = String(result.error);
+									}
 								}
 							};
 						}}
 					>
 						<input type="hidden" name="bookId" value={book.bookId} />
 						<input type="hidden" name="openLibraryId" value={book.openLibraryId || ''} />
+						<input type="hidden" name="listName" value="direct" />
 						<button
 							type="submit"
 							disabled={isStartReading}
@@ -167,6 +175,11 @@
 								Start Reading
 							{/if}
 						</button>
+						{#if startReadingError}
+							<div class="mt-2 text-red-600 text-sm">
+								{startReadingError}
+							</div>
+						{/if}
 					</form>
 					
 					<div class="relative">

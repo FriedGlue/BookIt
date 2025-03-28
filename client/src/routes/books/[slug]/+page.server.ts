@@ -172,11 +172,16 @@ export const actions: Actions = {
       // Use OpenLibraryId if it exists and bookId appears to be an OL ID
       const idToUse = (bookId.startsWith('OL') && openLibraryId) ? openLibraryId : bookId;
       console.log(`Starting reading book. Using ID: ${idToUse}`);
-      await bookService.addToCurrentlyReading(idToUse);
+      
+      // Use "direct" for books coming directly from the book detail page
+      await bookService.startReading(idToUse, "direct");
+      
       return { success: true };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to start reading book:', error);
-      return { error: String(error) };
+      return { 
+        error: error.message || String(error)
+      };
     }
   }
 };

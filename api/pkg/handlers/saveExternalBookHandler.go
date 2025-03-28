@@ -143,6 +143,13 @@ func saveBookToDynamoDB(svc *dynamodb.DynamoDB, bookData *OpenLibraryResponse, o
 		Tags: []string{"OpenLibrary:" + openLibraryId},
 	}
 
+	// Set a default page count if it's zero
+	if newBook.PageCount == 0 {
+		// Default to 300 pages if we don't have the actual count
+		newBook.PageCount = 300
+		log.Printf("Setting default page count (300) for book with no page information: %s", openLibraryId)
+	}
+
 	// Set cover image URL if available
 	if len(bookData.Covers) > 0 {
 		newBook.CoverImageURL = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", bookData.Covers[0])

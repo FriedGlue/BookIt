@@ -25,7 +25,6 @@ export const GET: RequestHandler = async ({ url, cookies, fetch }) => {
 				method: 'GET',
 				// The Open Library API does not require these headers, but you may leave them if needed
 				headers: {
-					Authorization: `Bearer ${token}`,
 					'Content-Type': 'application/json',
 					'User-Agent': 'BookIt-Dev/1.0 (josh.hayes121@icloud.com)'
 
