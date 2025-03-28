@@ -161,32 +161,32 @@
 
     <!-- Create Challenge Modal -->
     {#if showCreateForm}
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div class="w-full max-w-2xl rounded-lg bg-white p-8">
-                <h2 class="mb-6 text-2xl font-bold">Create Reading Challenge</h2>
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div class="w-full max-w-2xl rounded-lg bg-white p-4 sm:p-8 max-h-[90vh] overflow-y-auto">
+                <h2 class="mb-4 sm:mb-6 text-xl sm:text-2xl font-bold">Create Reading Challenge</h2>
 
                 <!-- Suggestions Section -->
                 {#if getSuggestions().length > 0}
-                    <div class="mb-8">
-                        <h3 class="mb-4 text-lg font-semibold text-gray-700">Suggestions</h3>
-                        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div class="mb-6 sm:mb-8">
+                        <h3 class="mb-3 sm:mb-4 text-base sm:text-lg font-semibold text-gray-700">Suggestions</h3>
+                        <div class="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
                             {#each getSuggestions() as suggestion}
                                 <button
-                                    class="group relative flex flex-col rounded-lg border-2 p-4 text-left transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg
+                                    class="group relative flex flex-col rounded-lg border-2 p-3 sm:p-4 text-left transition-all duration-200 ease-in-out hover:scale-105 hover:shadow-lg
                                         {selectedSuggestion === suggestion.name 
                                             ? 'border-blue-500 bg-blue-50 shadow-md' 
                                             : 'border-blue-200 hover:border-blue-400 hover:bg-blue-50'}"
                                     on:click={() => applySuggestion(suggestion)}
                                 >
                                     <div class="flex items-center justify-between">
-                                        <h4 class="font-semibold {selectedSuggestion === suggestion.name ? 'text-blue-600' : 'text-blue-500'}">{suggestion.name}</h4>
+                                        <h4 class="text-sm sm:text-base font-semibold {selectedSuggestion === suggestion.name ? 'text-blue-600' : 'text-blue-500'}">{suggestion.name}</h4>
                                         {#if selectedSuggestion === suggestion.name}
-                                            <svg class="h-5 w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                            <svg class="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                                                 <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
                                             </svg>
                                         {/if}
                                     </div>
-                                    <p class="mt-2 text-sm text-gray-600">{suggestion.description}</p>
+                                    <p class="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600">{suggestion.description}</p>
                                 </button>
                             {/each}
                         </div>
@@ -202,10 +202,10 @@
                             resetForm();
                         };
                     }}
-                    class="space-y-4"
+                    class="space-y-3 sm:space-y-4"
                 >
                     <div>
-                        <label for="name" class="mb-2 block text-sm font-medium text-gray-700"
+                        <label for="name" class="mb-1 sm:mb-2 block text-xs sm:text-sm font-medium text-gray-700"
                             >Challenge Name</label
                         >
                         <input
@@ -213,20 +213,20 @@
                             id="name"
                             name="name"
                             bind:value={challengeName}
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
                             required
                         />
                     </div>
 
                     <div>
-                        <label for="type" class="mb-2 block text-sm font-medium text-gray-700"
+                        <label for="type" class="mb-1 sm:mb-2 block text-xs sm:text-sm font-medium text-gray-700"
                             >Challenge Type</label
                         >
                         <select
                             id="type"
                             name="type"
                             bind:value={challengeType}
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
                         >
                             <option value="BOOKS">Books</option>
                             <option value="PAGES">Pages</option>
@@ -234,14 +234,14 @@
                     </div>
 
                     <div>
-                        <label for="timeframe" class="mb-2 block text-sm font-medium text-gray-700"
+                        <label for="timeframe" class="mb-1 sm:mb-2 block text-xs sm:text-sm font-medium text-gray-700"
                             >Timeframe</label
                         >
                         <select
                             id="timeframe"
                             name="timeframe"
                             bind:value={timeframe}
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
                         >
                             <option value="YEAR">Year</option>
                             <option value="MONTH">Month</option>
@@ -250,7 +250,7 @@
                     </div>
 
                     <div>
-                        <label for="startDate" class="mb-2 block text-sm font-medium text-gray-700"
+                        <label for="startDate" class="mb-1 sm:mb-2 block text-xs sm:text-sm font-medium text-gray-700"
                             >Start Date</label
                         >
                         <input
@@ -258,7 +258,7 @@
                             id="startDate"
                             name="startDate"
                             bind:value={startDate}
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
                             required
                         />
                     </div>
@@ -266,7 +266,7 @@
                     <input type="hidden" name="endDate" value={endDate} />
 
                     <div>
-                        <label for="target" class="mb-2 block text-sm font-medium text-gray-700">
+                        <label for="target" class="mb-1 sm:mb-2 block text-xs sm:text-sm font-medium text-gray-700">
                             Target ({challengeType === 'PAGES' ? 'Pages' : 'Books'})
                         </label>
                         <input
@@ -275,22 +275,22 @@
                             name="target"
                             bind:value={target}
                             min="1"
-                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
                             required
                         />
                     </div>
 
-                    <div class="mt-6 flex justify-end space-x-4">
+                    <div class="mt-4 sm:mt-6 flex justify-end space-x-3 sm:space-x-4">
                         <button
                             type="button"
-                            class="rounded-full bg-gray-200 px-6 py-2 text-gray-700 hover:bg-gray-300"
+                            class="rounded-full bg-gray-200 px-4 sm:px-6 py-1.5 sm:py-2 text-xs sm:text-sm text-gray-700 hover:bg-gray-300"
                             on:click={resetForm}
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
-                            class="rounded-full bg-blue-500 px-6 py-2 text-white hover:bg-blue-600"
+                            class="rounded-full bg-blue-500 px-4 sm:px-6 py-1.5 sm:py-2 text-xs sm:text-sm text-white hover:bg-blue-600"
                         >
                             Create
                         </button>
