@@ -136,13 +136,17 @@
 										<span class="text-sm text-gray-700">
 											{Math.round(reading.Book.progress?.percentage ?? 0)}%
 										</span>
+
 										<div class="space-x-2">
-											<a
-												href={`/books/${reading.Book.bookId}`}
-												class="text-blue-500 hover:text-blue-700"
-											>
-												Details
-											</a>
+
+									<a href={`/books/${reading.Book.bookId}`} class="w-3/4">
+										<button
+											type="button"
+											class="h-8 w-full text-center text-blue-500 hover:text-blue-700 transition-all duration-200"
+										>
+											Details
+										</button>
+									</a>
 										</div>
 									</div>
 									<!-- Trigger modal to update progress -->
@@ -225,6 +229,7 @@
 									<!-- "Start" reading form -->
 									<form method="post" action="?/startReading" class="w-3/4" use:enhance>
 										<input type="hidden" name="bookId" value={book.bookId} />
+										<input type="hidden" name="openLibraryId" value={book.openLibraryId || ''} />
 										<input type="hidden" name="listName" value="toBeRead" />
 										<button
 											type="submit"
@@ -237,6 +242,7 @@
 									<!-- "Remove" from list form -->
 									<form method="post" action="?/removeFromList" class="w-3/4" use:enhance>
 										<input type="hidden" name="bookId" value={book.bookId} />
+										<input type="hidden" name="openLibraryId" value={book.openLibraryId || ''} />
 										<input type="hidden" name="listType" value="toBeRead" />
 										<button
 											type="submit"
@@ -304,6 +310,7 @@
 
 									<form method="post" action="?/startReading" class="w-3/4" use:enhance>
 										<input type="hidden" name="bookId" value={book.bookId} />
+										<input type="hidden" name="openLibraryId" value={book.openLibraryId || ''} />
 										<input type="hidden" name="listName" value="read" />
 										<button
 											type="submit"
@@ -315,6 +322,7 @@
 
 									<form method="post" action="?/removeFromList" class="w-3/4" use:enhance>
 										<input type="hidden" name="bookId" value={book.bookId} />
+										<input type="hidden" name="openLibraryId" value={book.openLibraryId || ''} />
 										<input type="hidden" name="listType" value="read" />
 										<button
 											type="submit"
@@ -471,6 +479,7 @@
 								on:submit|preventDefault={() => closeModal()}
 							>
 								<input type="hidden" name="bookId" value={selectedBook.bookId} />
+								<input type="hidden" name="openLibraryId" value={selectedBook.openLibraryId || ''} />
 								<input type="hidden" name="newPageCount" value={progressType === 'pages' ? newPageCount : Math.round((percentComplete / 100) * selectedBook.totalPages)} />
 								<button
 									type="submit"
@@ -489,6 +498,7 @@
 								on:submit|preventDefault={() => closeModal()}
 							>
 								<input type="hidden" name="bookId" value={selectedBook.bookId} />
+								<input type="hidden" name="openLibraryId" value={selectedBook.openLibraryId || ''} />
 								<button
 									type="submit"
 									class="w-full rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:w-auto sm:px-5 sm:py-3"
@@ -506,6 +516,7 @@
 								on:submit|preventDefault={() => closeModal()}
 							>
 								<input type="hidden" name="bookId" value={selectedBook.bookId} />
+								<input type="hidden" name="openLibraryId" value={selectedBook.openLibraryId || ''} />
 								<button
 									type="submit"
 									class="w-full rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:w-auto sm:px-5 sm:py-3"

@@ -106,13 +106,6 @@ export const actions: Actions = {
 		}
 	},
 
-	viewDetails: async ({ request }) => {
-		const formData = await request.formData();
-		const bookId = formData.get('bookId')?.toString();
-		if (!bookId) return { error: 'Missing bookId' };
-		return { redirect: `/books/${bookId}` };
-	},
-
 	getProfile: async ({ cookies, fetch }) => {
 		const token = cookies.get('idToken');
 		const response = await fetch('/api/profile', {
@@ -132,6 +125,7 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const bookId = formData.get('bookId')?.toString();
+		const openLibraryId = formData.get('openLibraryId')?.toString();
 		const newPageCount = formData.get('newPageCount')?.toString();
 
 		if (!bookId || !newPageCount) {
@@ -140,7 +134,18 @@ export const actions: Actions = {
 
 		try {
 			const bookService = new BookService(token);
-			await bookService.updateBookProgress(bookId, Number(newPageCount));
+			
+			// Ensure we're using the internal bookId for database operations
+			let idToUse = bookId;
+			if (bookId.startsWith('OL') && (bookId.endsWith('W') || bookId.endsWith('M'))) {
+				// This will ensure the book is saved and return the internal ID
+				const internalId = await bookService.ensureBookExists(bookId);
+				if (internalId) {
+					idToUse = internalId;
+				}
+			}
+			
+			await bookService.updateBookProgress(idToUse, Number(newPageCount));
 			return { success: true };
 		} catch (err) {
 			console.error('Failed to update progress:', err);
@@ -154,6 +159,7 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const bookId = formData.get('bookId')?.toString();
+		const openLibraryId = formData.get('openLibraryId')?.toString();
 		const listType = formData.get('listType')?.toString();
 
 		if (!bookId || !listType) {
@@ -162,7 +168,18 @@ export const actions: Actions = {
 
 		try {
 			const bookService = new BookService(token);
-			await bookService.removeFromList(bookId, listType);
+			
+			// Ensure we're using the internal bookId
+			let idToUse = bookId;
+			if (bookId.startsWith('OL') && (bookId.endsWith('W') || bookId.endsWith('M'))) {
+				// This will ensure the book is saved and return the internal ID
+				const internalId = await bookService.ensureBookExists(bookId);
+				if (internalId) {
+					idToUse = internalId;
+				}
+			}
+			
+			await bookService.removeFromList(idToUse, listType);
 			return { success: true };
 		} catch (err) {
 			throw Error('Failed to remove from list', { cause: err });
@@ -175,11 +192,24 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const bookId = formData.get('bookId')?.toString();
+		const openLibraryId = formData.get('openLibraryId')?.toString();
+		
 		if (!bookId) return { error: 'Missing bookId' };
 
 		try {
 			const bookService = new BookService(token);
-			await bookService.removeFromCurrentlyReading(bookId);
+			
+			// Ensure we're using the internal bookId
+			let idToUse = bookId;
+			if (bookId.startsWith('OL') && (bookId.endsWith('W') || bookId.endsWith('M'))) {
+				// This will ensure the book is saved and return the internal ID
+				const internalId = await bookService.ensureBookExists(bookId);
+				if (internalId) {
+					idToUse = internalId;
+				}
+			}
+			
+			await bookService.removeFromCurrentlyReading(idToUse);
 			return { success: true };
 		} catch (err) {
 			throw Error('Failed to remove from currently reading', { cause: err });
@@ -200,11 +230,24 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const bookId = formData.get('bookId')?.toString();
+		const openLibraryId = formData.get('openLibraryId')?.toString();
+		
 		if (!bookId) return { error: 'Missing bookId' };
 
 		try {
 			const bookService = new BookService(token);
-			await bookService.finishReading(bookId);
+			
+			// Ensure we're using the internal bookId
+			let idToUse = bookId;
+			if (bookId.startsWith('OL') && (bookId.endsWith('W') || bookId.endsWith('M'))) {
+				// This will ensure the book is saved and return the internal ID
+				const internalId = await bookService.ensureBookExists(bookId);
+				if (internalId) {
+					idToUse = internalId;
+				}
+			}
+			
+			await bookService.finishReading(idToUse);
 			return { success: true };
 		} catch (err) {
 			console.error('Failed to finish book:', err);

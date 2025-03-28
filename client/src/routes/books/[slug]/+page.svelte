@@ -2,6 +2,7 @@
 	import type { PageData } from './$types';
 	import type { Book } from '$lib/types';
 	import { enhance } from '$app/forms';
+	import { onMount } from 'svelte';
 
 	export let data: PageData;
 
@@ -13,6 +14,7 @@
 	let addingToList: string | null = null;
 	let imageLoading = true;
 	let lastAddedList: string | null = null;
+	let loadingTimeout = false;
 	
 	const defaultLists = [
 		{ id: 'toBeRead', name: 'To Be Read' },
@@ -25,6 +27,15 @@
 	}));
 
 	$: allLists = [...defaultLists, ...customLists];
+
+	// Show a more descriptive message if loading takes too long
+	onMount(() => {
+		const timer = setTimeout(() => {
+			loadingTimeout = true;
+		}, 5000); // Show message after 5 seconds
+		
+		return () => clearTimeout(timer);
+	});
 
 	function toggleDropdown() {
 		showListDropdown = !showListDropdown;
@@ -54,8 +65,17 @@
 
 <svelte:window on:keydown={handleKeydown} />
 
+<!-- Book Page -->
 <section class="mx-8 mt-16 px-4 md:mx-16 lg:mx-40">
-	{#if book}
+	{#if data.notFound}
+		<div class="flex flex-col items-center justify-center py-16 text-center">
+			<h1 class="text-3xl font-bold text-red-600 mb-4">Book Not Found</h1>
+			<p class="text-xl text-gray-700 mb-8">{data.error || 'The book you are looking for could not be found.'}</p>
+			<a href="/" class="rounded-full bg-blue-600 px-6 py-3 text-white transition-all duration-200 hover:bg-blue-700">
+				Return to Home
+			</a>
+		</div>
+	{:else if book}
 		<div class="flex flex-col md:flex-row gap-8">
 			<!-- Book Cover -->
 			<div class="flex-shrink-0 relative w-64">
@@ -122,11 +142,14 @@
 								isStartReading = false;
 								if (result.type === 'success') {
 									// Could add a toast notification here
+								} else if (result.type === 'error') {
+									console.error('Error starting to read book:', result.error);
 								}
 							};
 						}}
 					>
 						<input type="hidden" name="bookId" value={book.bookId} />
+						<input type="hidden" name="openLibraryId" value={book.openLibraryId || ''} />
 						<button
 							type="submit"
 							disabled={isStartReading}
@@ -181,11 +204,14 @@
 													if (result.type === 'success') {
 														lastAddedList = list.id;
 														closeDropdown();
+													} else if (result.type === 'error') {
+														console.error('Error adding book to list:', result.error);
 													}
 												};
 											}}
 										>
 											<input type="hidden" name="bookId" value={book.bookId} />
+											<input type="hidden" name="openLibraryId" value={book.openLibraryId || ''} />
 											<input type="hidden" name="listType" value={list.id} />
 											<button
 												type="submit"
@@ -215,6 +241,28 @@
 			</div>
 		</div>
 	{:else}
-		<p class="text-2xl text-gray-500">Loading...</p>
+		<div class="flex flex-col items-center justify-center py-16 text-center">
+			<div class="mb-8">
+				<svg class="animate-spin h-12 w-12 text-blue-500 mx-auto" viewBox="0 0 24 24">
+					<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+					<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+				</svg>
+			</div>
+			<h2 class="text-2xl font-semibold text-gray-700">Loading book details...</h2>
+			
+			{#if loadingTimeout}
+				<div class="mt-6 max-w-lg mx-auto">
+					<p class="text-gray-600 mb-4">
+						This is taking longer than expected. The book ID may be invalid or there might be an issue connecting to the database.
+					</p>
+					<p class="text-sm text-gray-500">
+						Book IDs should be either OpenLibrary IDs (starting with 'OL' and ending with 'W' or 'M') or valid UUIDs.
+					</p>
+					<a href="/" class="inline-block mt-6 rounded-full bg-blue-600 px-6 py-3 text-white transition-all duration-200 hover:bg-blue-700">
+						Return to Home
+					</a>
+				</div>
+			{/if}
+		</div>
 	{/if}
 </section>

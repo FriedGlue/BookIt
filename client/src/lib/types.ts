@@ -12,11 +12,14 @@ export interface Book {
 	titleLowercase?: string;
 	authors?: string[];
 	pageCount?: number;
+	coverImageUrl?: string;
 	thumbnail?: string;
 	tags?: string[];
 	progress?: ReadingProgress;
 	_listType?: string;
 	totalPages: number;
+	openLibraryId?: string;
+	description?: string;
 }
 
 export interface CurrentlyReadingItem {
@@ -48,6 +51,7 @@ export interface DisplayBook {
 	totalPages: number;
 	currentPage: number;
 	lastUpdated: string;
+	openLibraryId?: string;
 }
 
 export interface ToBeReadItem {
@@ -55,6 +59,7 @@ export interface ToBeReadItem {
 	thumbnail?: string;
 	addedDate?: string;
 	order?: number;
+	openLibraryId?: string;
 }
 
 export interface ReadItem {
@@ -66,6 +71,7 @@ export interface ReadItem {
 	thumbnail?: string;
 	title?: string;
 	authors?: string[];
+	openLibraryId?: string;
 }
 
 export interface ReadingLogItem {
