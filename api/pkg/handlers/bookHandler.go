@@ -37,6 +37,7 @@ type BookData struct {
 	PageCount      int      `json:"pageCount,omitempty"`
 	CoverImageURL  string   `json:"coverImageUrl,omitempty"`
 	Tags           []string `json:"tags,omitempty"`
+	OpenLibraryId  string   `json:"openLibraryId,omitempty"`
 }
 
 // ===============================
@@ -133,11 +134,11 @@ func FetchBookFromOpenLibrary(isbn string) (BookData, error) {
 //  CRUD Handlers (API Gateway)
 // ===============================
 
-// 1. GET /books/{isbn?}
-//   - If an ISBN is provided in pathParameters["isbn"], retrieve that specific book.
-//   - If no ISBN is provided, do a scan or handle accordingly (not recommended at large scale).
+// 1. GET /books/{bookId?}
+//   - If a bookId is provided in pathParameters["bookId"], retrieve that specific book.
+//   - If no bookId is provided, do a scan or handle accordingly (not recommended at large scale).
 func GetBooks(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
-	bookId, hasBookId := request.PathParameters["isbn"]
+	bookId, hasBookId := request.PathParameters["bookId"]
 	svc := shared.DynamoDBClient()
 
 	if hasBookId && bookId != "" {
