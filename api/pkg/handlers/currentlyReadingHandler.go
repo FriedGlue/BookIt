@@ -278,12 +278,35 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 
 	// Find the book in the currently reading list
 	found := false
-	var storedBook models.CurrentlyReadingItem
+	bookIndex := -1
+
+	// Log currently reading books to help debug
+	log.Printf("Current currently reading books count: %d", len(profile.CurrentlyReading))
 	for i, item := range profile.CurrentlyReading {
-		if item.Book.ISBN == updateReq.ISBN || item.Book.BookID == updateReq.BookID {
-			storedBook = profile.CurrentlyReading[i]
+		log.Printf("Book %d: ID=%s, ISBN=%s, Title=%s", i, item.Book.BookID, item.Book.ISBN, item.Book.Title)
+	}
+	log.Printf("Looking for book with BookID=%s or ISBN=%s", updateReq.BookID, updateReq.ISBN)
+
+	for i, item := range profile.CurrentlyReading {
+		// Log each comparison to help debug
+		if updateReq.BookID != "" {
+			log.Printf("Comparing book %d: provided bookId '%s' == item.Book.BookID '%s': %v",
+				i, updateReq.BookID, item.Book.BookID, item.Book.BookID == updateReq.BookID)
+		}
+		if updateReq.ISBN != "" {
+			log.Printf("Comparing book %d: provided ISBN '%s' == item.Book.ISBN '%s': %v",
+				i, updateReq.ISBN, item.Book.ISBN, item.Book.ISBN == updateReq.ISBN)
+		}
+
+		// Match by BookID or ISBN
+		matchesBookId := updateReq.BookID != "" && item.Book.BookID == updateReq.BookID
+		matchesISBN := updateReq.ISBN != "" && item.Book.ISBN == updateReq.ISBN
+
+		if matchesBookId || matchesISBN {
+			bookIndex = i
 			found = true
-			log.Printf("Found matching book in currently reading list: %+v\n", storedBook)
+			log.Printf("Found matching book at index %d: BookID=%s, ISBN=%s, Title=%s",
+				i, item.Book.BookID, item.Book.ISBN, item.Book.Title)
 			break
 		}
 	}
@@ -294,42 +317,34 @@ func UpdateCurrentlyReading(request events.APIGatewayProxyRequest) events.APIGat
 	}
 
 	// Calculate new progress percentage
-	if storedBook.Book.TotalPages == 0 {
+	if profile.CurrentlyReading[bookIndex].Book.TotalPages == 0 {
 		log.Printf("TotalPages for book is 0, setting default value of 300\n")
 		// Set a default page count instead of failing
-		storedBook.Book.TotalPages = 300
+		profile.CurrentlyReading[bookIndex].Book.TotalPages = 300
 	}
+
 	newProgressPercentage := math.Floor(
-		float64(updateReq.CurrentPage) / float64(storedBook.Book.TotalPages) * 100,
+		float64(updateReq.CurrentPage) / float64(profile.CurrentlyReading[bookIndex].Book.TotalPages) * 100,
 	)
 	log.Printf("Calculated new progress percentage: %.2f%% for currentPage: %d and totalPages: %d\n",
-		newProgressPercentage, updateReq.CurrentPage, storedBook.Book.TotalPages)
+		newProgressPercentage, updateReq.CurrentPage, profile.CurrentlyReading[bookIndex].Book.TotalPages)
 
 	// Calculate the number of pages read
-	pagesRead := updateReq.CurrentPage - storedBook.Book.Progress.LastPageRead
+	pagesRead := updateReq.CurrentPage - profile.CurrentlyReading[bookIndex].Book.Progress.LastPageRead
 
-	// Update the progress data in the storedBook
-	storedBook.Book.Progress.LastPageRead = updateReq.CurrentPage
-	storedBook.Book.Progress.Percentage = newProgressPercentage
-	storedBook.Book.Progress.LastUpdated = time.Now().Format(time.RFC3339)
-	log.Printf("Updated storedBook progress: %+v\n", storedBook.Book.Progress)
-
-	// Update the profile's currently reading entry with new progress
-	for i, item := range profile.CurrentlyReading {
-		if item.Book.ISBN == updateReq.ISBN || item.Book.BookID == updateReq.BookID {
-			profile.CurrentlyReading[i].Book.Progress = storedBook.Book.Progress
-			log.Printf("Profile currently reading updated for item index %d: %+v\n", i, profile.CurrentlyReading[i])
-			break
-		}
-	}
+	// Update the progress data directly in the array
+	profile.CurrentlyReading[bookIndex].Book.Progress.LastPageRead = updateReq.CurrentPage
+	profile.CurrentlyReading[bookIndex].Book.Progress.Percentage = newProgressPercentage
+	profile.CurrentlyReading[bookIndex].Book.Progress.LastUpdated = time.Now().Format(time.RFC3339)
+	log.Printf("Updated book progress: %+v\n", profile.CurrentlyReading[bookIndex].Book.Progress)
 
 	// Update the reading log with the new progress
 	logEntry := models.ReadingLogItem{
 		Id:            fmt.Sprintf("%d", rand.Int()),
 		Date:          time.Now().Format(time.RFC3339),
-		BookID:        storedBook.Book.BookID,
-		Title:         storedBook.Book.Title,
-		BookThumbnail: storedBook.Book.Thumbnail,
+		BookID:        profile.CurrentlyReading[bookIndex].Book.BookID,
+		Title:         profile.CurrentlyReading[bookIndex].Book.Title,
+		BookThumbnail: profile.CurrentlyReading[bookIndex].Book.Thumbnail,
 		PagesRead:     pagesRead,
 		Notes:         updateReq.Notes,
 	}
@@ -372,9 +387,8 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 	}
 
 	bookId := request.QueryStringParameters["bookId"]
-	isbn := request.QueryStringParameters["isbn"]
-	if bookId == "" && isbn == "" {
-		return shared.ErrorResponse(400, "bookId or isbn query parameter are required")
+	if bookId == "" {
+		return shared.ErrorResponse(400, "bookId query parameter is required")
 	}
 
 	svc := shared.DynamoDBClient()
@@ -401,12 +415,25 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 		return shared.ErrorResponse(500, "Error unmarshalling profile: "+err.Error())
 	}
 
+	// Log the current state of currently reading books to help debug
+	log.Printf("Current currently reading books count: %d", len(profile.CurrentlyReading))
+	for i, item := range profile.CurrentlyReading {
+		log.Printf("Book %d: ID=%s, Title=%s", i, item.Book.BookID, item.Book.Title)
+	}
+	log.Printf("Looking for book with ID=%s", bookId)
+
 	var bookDetails models.Book
 	index := -1
 	for i, item := range profile.CurrentlyReading {
-		if item.Book.BookID == bookId || item.Book.ISBN == isbn {
+		// Log each comparison to debug the matching logic
+		log.Printf("Comparing book %d: provided bookId '%s' == item.Book.BookID '%s': %v",
+			i, bookId, item.Book.BookID, item.Book.BookID == bookId)
+
+		if item.Book.BookID == bookId {
 			index = i
 			bookDetails = item.Book
+			log.Printf("Found match at index %d: BookID=%s, Title=%s",
+				i, item.Book.BookID, item.Book.Title)
 			break
 		}
 	}
@@ -416,6 +443,8 @@ func RemoveFromCurrentlyReading(request events.APIGatewayProxyRequest) events.AP
 		return shared.ErrorResponse(404, "Book not found in currently reading list")
 	}
 
+	// Log before removal
+	log.Printf("Removing book at index %d from currently reading list", index)
 	profile.CurrentlyReading = append(profile.CurrentlyReading[:index], profile.CurrentlyReading[index+1:]...)
 	// Update the reading log with the new progress
 	logEntry := models.ReadingLogItem{
