@@ -198,24 +198,15 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const bookId = formData.get('bookId')?.toString();
-		const openLibraryId = formData.get('openLibraryId')?.toString();
+
+		console.log('Removing from currently reading:', bookId);
 		
 		if (!bookId) return { error: 'Missing bookId' };
 
 		try {
 			const bookService = new BookService(token);
 			
-			// Ensure we're using the internal bookId
-			let idToUse = bookId;
-			if (bookId.startsWith('OL') && (bookId.endsWith('W') || bookId.endsWith('M'))) {
-				// This will ensure the book is saved and return the internal ID
-				const internalId = await bookService.ensureBookExists(bookId);
-				if (internalId) {
-					idToUse = internalId;
-				}
-			}
-			
-			await bookService.removeFromCurrentlyReading(idToUse);
+			await bookService.removeFromCurrentlyReading(bookId);
 			return { success: true };
 		} catch (err) {
 			throw Error('Failed to remove from currently reading', { cause: err });
