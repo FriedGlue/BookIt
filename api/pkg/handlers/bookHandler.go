@@ -38,6 +38,7 @@ type BookData struct {
 	CoverImageURL  string   `json:"coverImageUrl,omitempty"`
 	Tags           []string `json:"tags,omitempty"`
 	OpenLibraryId  string   `json:"openLibraryId,omitempty"`
+	Description    string   `json:"description,omitempty"`
 }
 
 // ===============================

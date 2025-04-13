@@ -18,16 +18,56 @@ import (
 
 // OpenLibraryResponse represents the data structure returned from Open Library API
 type OpenLibraryResponse struct {
-	Title         string   `json:"title"`
-	Authors       []Author `json:"authors"`
-	Covers        []int    `json:"covers"`
-	NumberOfPages int      `json:"number_of_pages"`
-	ISBN13        []string `json:"isbn_13"`
-	Description   string   `json:"description,omitempty"`
+	Description   Description    `json:"description"`
+	Title         string         `json:"title"`
+	URL           string         `json:"url"`
+	NumberOfPages int            `json:"number_of_pages"`
+	Subjects      []string       `json:"subjects"`
+	PublishDate   string         `json:"publish_date"`
+	Authors       []Author       `json:"authors"`
+	PublishPlaces []PublishPlace `json:"publish_places"`
+	Cover         []Cover        `json:"cover"`
+	Publishers    []Publisher    `json:"publishers"`
+	Identifiers   Identifiers    `json:"identifiers"`
+}
+
+type Description struct {
+	Value string `json:"value"`
+	Type  string `json:"type"`
+}
+
+type Publisher struct {
+	Name string `json:"name"`
 }
 
 type Author struct {
-	Key string `json:"key"`
+	URL  string `json:"url"`
+	Name string `json:"name"`
+}
+
+type Excerpt struct {
+	Comment string `json:"comment"`
+	Text    string `json:"text"`
+}
+
+type PublishPlace struct {
+	Name string `json:"name"`
+}
+
+type Cover struct {
+	Small  string `json:"small"`
+	Medium string `json:"medium"`
+	Large  string `json:"large"`
+}
+
+type Identifiers struct {
+	ISBN13       []string `json:"isbn_13"`
+	ISBN10       []string `json:"isbn_10"`
+	Google       []string `json:"google"`
+	LCCN         []string `json:"lccn"`
+	OCLC         []string `json:"oclc"`
+	Goodreads    []string `json:"goodreads"`
+	LibraryThing []string `json:"librarything"`
 }
 
 // SaveExternalBook handles POST requests to /books/save-external-book
@@ -105,7 +145,7 @@ func SaveExternalBook(request events.APIGatewayProxyRequest) events.APIGatewayPr
 // fetchBookFromOpenLibrary fetches book data from Open Library API
 func fetchBookFromOpenLibrary(openLibraryId string) (*OpenLibraryResponse, error) {
 	// Format: OL12345W -> /works/OL12345W
-	url := fmt.Sprintf("https://openlibrary.org/works/%s.json", openLibraryId)
+	url := fmt.Sprintf("https://openlibrary.org/works/%s.json?jscmd=data", openLibraryId)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -122,13 +162,25 @@ func fetchBookFromOpenLibrary(openLibraryId string) (*OpenLibraryResponse, error
 		return nil, err
 	}
 
-	var bookData OpenLibraryResponse
-	err = json.Unmarshal(body, &bookData)
+	// The API returns a JSON object where the key is the ISBN or ID
+	var responseMap map[string]*OpenLibraryResponse
+	err = json.Unmarshal(body, &responseMap)
 	if err != nil {
-		return nil, err
+		// Try parsing as a direct object in case the API response format changes
+		var bookData OpenLibraryResponse
+		err = json.Unmarshal(body, &bookData)
+		if err != nil {
+			return nil, err
+		}
+		return &bookData, nil
 	}
 
-	return &bookData, nil
+	// Extract the first book from the map
+	for _, bookData := range responseMap {
+		return bookData, nil
+	}
+
+	return nil, fmt.Errorf("no book data found in the response")
 }
 
 // saveBookToDynamoDB saves the book data to DynamoDB
@@ -139,8 +191,13 @@ func saveBookToDynamoDB(svc *dynamodb.DynamoDB, bookData *OpenLibraryResponse, o
 		Title:          bookData.Title,
 		TitleLowercase: strings.ToLower(bookData.Title),
 		PageCount:      bookData.NumberOfPages,
-		// e OpenLibraryID in our schema, but we can store it as a tag
-		Tags: []string{"OpenLibrary:" + openLibraryId},
+		OpenLibraryId:  openLibraryId,
+		Tags:           []string{},
+		Description:    bookData.Description.Value,
+	}
+
+	if bookData.Description.Value != "" {
+		newBook.Description = bookData.Description.Value
 	}
 
 	// Set a default page count if it's zero
@@ -150,30 +207,70 @@ func saveBookToDynamoDB(svc *dynamodb.DynamoDB, bookData *OpenLibraryResponse, o
 		log.Printf("Setting default page count (300) for book with no page information: %s", openLibraryId)
 	}
 
+	// Add publish date as a tag if available
+	if bookData.PublishDate != "" {
+		newBook.Tags = append(newBook.Tags, "Published:"+bookData.PublishDate)
+	}
+
 	// Set cover image URL if available
-	if len(bookData.Covers) > 0 {
-		newBook.CoverImageURL = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", bookData.Covers[0])
+	if len(bookData.Cover) > 0 && bookData.Cover[0].Large != "" {
+		newBook.CoverImageURL = bookData.Cover[0].Large
+	} else if len(bookData.Cover) > 0 && bookData.Cover[0].Medium != "" {
+		newBook.CoverImageURL = bookData.Cover[0].Medium
+	} else if len(bookData.Cover) > 0 && bookData.Cover[0].Small != "" {
+		newBook.CoverImageURL = bookData.Cover[0].Small
 	}
 
-	// Set ISBN if available
-	if len(bookData.ISBN13) > 0 {
-		newBook.ISBN13 = bookData.ISBN13[0]
+	// Set ISBNs if available
+	if len(bookData.Identifiers.ISBN13) > 0 {
+		newBook.ISBN13 = bookData.Identifiers.ISBN13[0]
 	}
-
-	// Set description if available
-	if bookData.Description != "" {
-		if descriptionField, ok := interface{}(newBook).(interface{ SetDescription(string) }); ok {
-			descriptionField.SetDescription(bookData.Description)
-		}
+	if len(bookData.Identifiers.ISBN10) > 0 {
+		newBook.ISBN10 = bookData.Identifiers.ISBN10[0]
 	}
 
 	// Get author names if available
 	if len(bookData.Authors) > 0 {
-		authorNames, err := fetchAuthorNames(bookData.Authors)
-		if err == nil && len(authorNames) > 0 {
+		var authorNames []string
+		for _, author := range bookData.Authors {
+			if author.Name != "" {
+				authorNames = append(authorNames, author.Name)
+			}
+		}
+		if len(authorNames) > 0 {
 			newBook.Authors = authorNames
 		}
 	}
+
+	// Add subjects as tags
+	if len(bookData.Subjects) > 0 {
+		for _, subject := range bookData.Subjects {
+			if subject != "" {
+				newBook.Tags = append(newBook.Tags, subject)
+			}
+		}
+	}
+
+	// Add publisher information as a tag
+	if len(bookData.Publishers) > 0 && bookData.Publishers[0].Name != "" {
+		newBook.Tags = append(newBook.Tags, "Publisher:"+bookData.Publishers[0].Name)
+	}
+
+	// Create additional identifiers as tags
+	addIdentifierAsTag := func(idType string, values []string) {
+		if len(values) > 0 {
+			newBook.Tags = append(newBook.Tags, fmt.Sprintf("%s:%s", idType, values[0]))
+		}
+	}
+
+	addIdentifierAsTag("Google", bookData.Identifiers.Google)
+	addIdentifierAsTag("LCCN", bookData.Identifiers.LCCN)
+	addIdentifierAsTag("OCLC", bookData.Identifiers.OCLC)
+	addIdentifierAsTag("Goodreads", bookData.Identifiers.Goodreads)
+	addIdentifierAsTag("LibraryThing", bookData.Identifiers.LibraryThing)
+
+	// Always add the OpenLibrary tag
+	newBook.Tags = append(newBook.Tags, "OpenLibrary:"+openLibraryId)
 
 	// Convert book to DynamoDB attribute value
 	item, err := dynamodbattribute.MarshalMap(newBook)
@@ -193,54 +290,4 @@ func saveBookToDynamoDB(svc *dynamodb.DynamoDB, bookData *OpenLibraryResponse, o
 	}
 
 	return &newBook, nil
-}
-
-// fetchAuthorNames fetches author names from Open Library API
-func fetchAuthorNames(authors []Author) ([]string, error) {
-	var authorNames []string
-
-	for _, author := range authors {
-		// Format: /authors/OL12345A -> OL12345A
-		authorId := author.Key
-		if len(authorId) > 9 {
-			authorId = authorId[9:]
-		}
-
-		url := fmt.Sprintf("https://openlibrary.org/authors/%s.json", authorId)
-
-		resp, err := http.Get(url)
-		if err != nil {
-			log.Printf("Error fetching author %s: %v", authorId, err)
-			continue
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			log.Printf("Failed to fetch author %s: %s", authorId, resp.Status)
-			resp.Body.Close()
-			continue
-		}
-
-		body, err := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
-		if err != nil {
-			log.Printf("Error reading author response for %s: %v", authorId, err)
-			continue
-		}
-
-		var authorData struct {
-			Name string `json:"name"`
-		}
-
-		err = json.Unmarshal(body, &authorData)
-		if err != nil {
-			log.Printf("Error parsing author data for %s: %v", authorId, err)
-			continue
-		}
-
-		if authorData.Name != "" {
-			authorNames = append(authorNames, authorData.Name)
-		}
-	}
-
-	return authorNames, nil
 }
