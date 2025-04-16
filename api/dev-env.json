@@ -1,0 +1,13 @@
+{
+    "OrchestratorFunction": {
+        "ISBN_INDEX_NAME": "ISBNIndex",
+        "PROFILES_TABLE_NAME": "ProfilesTable-dev",
+        "BOOKS_TABLE_NAME": "BookDataTable-dev",
+        "OPEN_LIBRARY_INDEX_NAME": "OpenLibraryIndex"
+    },
+    "AuthFunction": {
+        "USER_EVENTS_TOPIC_ARN": "arn:aws:sns:us-east-2:499182923302:UserEvents-dev",
+        "USER_POOL_CLIENT_ID": "2g3ej1o8j4o21lmc484jfjr05k",
+        "USER_POOL_ID": "us-east-2_J6buAKywi"
+    }
+}

@@ -1,0 +1,105 @@
+// pkg/repository/dynamodb/book_repo.go
+package dynamodb
+
+import (
+	"context"
+	"errors"
+	"strings"
+
+	"github.com/FriedGlue/BookIt/api/pkg/models"
+	"github.com/FriedGlue/BookIt/api/pkg/usecase"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
+)
+
+type bookRepo struct {
+	db        *dynamodb.DynamoDB
+	tableName string
+}
+
+func NewBookRepo(sess *session.Session, table string) usecase.BookRepo {
+	return &bookRepo{db: dynamodb.New(sess), tableName: table}
+}
+
+func (r *bookRepo) Load(ctx context.Context, id string) (models.Book, error) {
+	input := &dynamodb.GetItemInput{TableName: aws.String(r.tableName), Key: map[string]*dynamodb.AttributeValue{"ID": {S: aws.String(id)}}}
+	res, err := r.db.GetItemWithContext(ctx, input)
+	if err != nil {
+		return models.Book{}, err
+	}
+	if res.Item == nil {
+		return models.Book{}, errors.New("not found")
+	}
+	var b models.Book
+	if err := dynamodbattribute.UnmarshalMap(res.Item, &b); err != nil {
+		return b, err
+	}
+	return b, nil
+}
+
+func (r *bookRepo) QueryAll(ctx context.Context) ([]models.Book, error) {
+	out, err := r.db.ScanWithContext(ctx, &dynamodb.ScanInput{TableName: aws.String(r.tableName)})
+	if err != nil {
+		return nil, err
+	}
+	var books []models.Book
+	if err := dynamodbattribute.UnmarshalListOfMaps(out.Items, &books); err != nil {
+		return nil, err
+	}
+	return books, nil
+}
+
+func (r *bookRepo) Save(ctx context.Context, b models.Book) error {
+	av, err := dynamodbattribute.MarshalMap(b)
+	if err != nil {
+		return err
+	}
+	_, err = r.db.PutItemWithContext(ctx, &dynamodb.PutItemInput{TableName: aws.String(r.tableName), Item: av})
+	return err
+}
+
+func (r *bookRepo) Delete(ctx context.Context, id string) error {
+	_, err := r.db.DeleteItemWithContext(ctx, &dynamodb.DeleteItemInput{TableName: aws.String(r.tableName), Key: map[string]*dynamodb.AttributeValue{"ID": {S: aws.String(id)}}})
+	return err
+}
+
+func (r *bookRepo) SearchByISBN(ctx context.Context, isbn string) ([]models.Book, error) {
+	expr, _ := expression.NewBuilder().WithFilter(expression.Equal(expression.Name("ISBN"), expression.Value(isbn))).Build()
+	out, err := r.db.ScanWithContext(ctx, &dynamodb.ScanInput{
+		TableName:                 aws.String(r.tableName),
+		FilterExpression:          expr.Filter(),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	var books []models.Book
+	if err := dynamodbattribute.UnmarshalListOfMaps(out.Items, &books); err != nil {
+		return nil, err
+	}
+	return books, nil
+}
+
+func (r *bookRepo) SearchByTitle(ctx context.Context, q string) ([]models.Book, error) {
+	expr, _ := expression.NewBuilder().WithFilter(
+		expression.Contains(expression.Name("TitleLowercase"), strings.ToLower(q)),
+	).Build()
+	out, err := r.db.ScanWithContext(ctx, &dynamodb.ScanInput{
+		TableName:                 aws.String(r.tableName),
+		FilterExpression:          expr.Filter(),
+		ExpressionAttributeNames:  expr.Names(),
+		ExpressionAttributeValues: expr.Values(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	var books []models.Book
+	if err := dynamodbattribute.UnmarshalListOfMaps(out.Items, &books); err != nil {
+		return nil, err
+	}
+	return books, nil
+}

@@ -7,10 +7,10 @@ import (
 	"os"
 
 	"github.com/FriedGlue/BookIt/api/pkg/models"
-	"github.com/FriedGlue/BookIt/api/pkg/shared"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 )
@@ -60,7 +60,7 @@ func handleRequest(ctx context.Context, snsEvent events.SNSEvent) error {
 		}
 
 		// Save to DynamoDB
-		svc := shared.DynamoDBClient()
+		svc := dynamodb.New(session.Must(session.NewSession()))
 		input := &dynamodb.PutItemInput{
 			TableName: aws.String(os.Getenv("PROFILES_TABLE_NAME")),
 			Item:      item,

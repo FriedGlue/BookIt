@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/FriedGlue/BookIt/api/pkg/shared"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -49,10 +48,10 @@ type SignUpPayload struct {
 func HandleSignUp(request events.APIGatewayProxyRequest) events.APIGatewayProxyResponse {
 	var payload SignUpPayload
 	if err := json.Unmarshal([]byte(request.Body), &payload); err != nil {
-		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
+		return ErrorResponse(400, "Invalid JSON: "+err.Error())
 	}
 	if payload.Username == "" || payload.Password == "" || payload.Email == "" {
-		return shared.ErrorResponse(400, "username, password, and email are required")
+		return ErrorResponse(400, "username, password, and email are required")
 	}
 
 	cip := newCognitoClient()
@@ -70,7 +69,7 @@ func HandleSignUp(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 
 	_, err := cip.SignUp(input)
 	if err != nil {
-		return shared.ErrorResponse(500, fmt.Sprintf("SignUp error: %v", err))
+		return ErrorResponse(500, fmt.Sprintf("SignUp error: %v", err))
 	}
 
 	return events.APIGatewayProxyResponse{
@@ -91,10 +90,10 @@ func HandleConfirmSignUp(request events.APIGatewayProxyRequest) events.APIGatewa
 		Code     string `json:"code"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &payload); err != nil {
-		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
+		return ErrorResponse(400, "Invalid JSON: "+err.Error())
 	}
 	if payload.Username == "" || payload.Code == "" {
-		return shared.ErrorResponse(400, "username and code are required")
+		return ErrorResponse(400, "username and code are required")
 	}
 
 	cip := newCognitoClient()
@@ -106,7 +105,7 @@ func HandleConfirmSignUp(request events.APIGatewayProxyRequest) events.APIGatewa
 
 	_, err := cip.ConfirmSignUp(input)
 	if err != nil {
-		return shared.ErrorResponse(500, fmt.Sprintf("ConfirmSignUp error: %v", err))
+		return ErrorResponse(500, fmt.Sprintf("ConfirmSignUp error: %v", err))
 	}
 
 	// Get the user's sub from Cognito
@@ -116,7 +115,7 @@ func HandleConfirmSignUp(request events.APIGatewayProxyRequest) events.APIGatewa
 	})
 	if err != nil {
 		log.Printf("Error getting user info: %v", err)
-		return shared.ErrorResponse(500, fmt.Sprintf("Error getting user info: %v", err))
+		return ErrorResponse(500, fmt.Sprintf("Error getting user info: %v", err))
 	}
 
 	var sub string
@@ -129,7 +128,7 @@ func HandleConfirmSignUp(request events.APIGatewayProxyRequest) events.APIGatewa
 
 	if sub == "" {
 		log.Printf("User sub not found")
-		return shared.ErrorResponse(500, "User sub not found")
+		return ErrorResponse(500, "User sub not found")
 	}
 
 	// Send a message to the service bus to create a new user profile
@@ -172,10 +171,10 @@ func HandleResendConfirmationCode(request events.APIGatewayProxyRequest) events.
 		Username string `json:"username"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &payload); err != nil {
-		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
+		return ErrorResponse(400, "Invalid JSON: "+err.Error())
 	}
 	if payload.Username == "" {
-		return shared.ErrorResponse(400, "username is required")
+		return ErrorResponse(400, "username is required")
 	}
 
 	cip := newCognitoClient()
@@ -186,7 +185,7 @@ func HandleResendConfirmationCode(request events.APIGatewayProxyRequest) events.
 
 	_, err := cip.ResendConfirmationCode(input)
 	if err != nil {
-		return shared.ErrorResponse(500, fmt.Sprintf("ResendConfirmationCode error: %v", err))
+		return ErrorResponse(500, fmt.Sprintf("ResendConfirmationCode error: %v", err))
 	}
 
 	return events.APIGatewayProxyResponse{
@@ -207,10 +206,10 @@ func HandleSignIn(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 		Password string `json:"password"`
 	}
 	if err := json.Unmarshal([]byte(request.Body), &payload); err != nil {
-		return shared.ErrorResponse(400, "Invalid JSON: "+err.Error())
+		return ErrorResponse(400, "Invalid JSON: "+err.Error())
 	}
 	if payload.Username == "" || payload.Password == "" {
-		return shared.ErrorResponse(400, "username and password are required")
+		return ErrorResponse(400, "username and password are required")
 	}
 
 	cip := newCognitoClient()
@@ -225,11 +224,11 @@ func HandleSignIn(request events.APIGatewayProxyRequest) events.APIGatewayProxyR
 
 	output, err := cip.InitiateAuth(input)
 	if err != nil {
-		return shared.ErrorResponse(401, fmt.Sprintf("SignIn error: %v", err))
+		return ErrorResponse(401, fmt.Sprintf("SignIn error: %v", err))
 	}
 
 	if output.AuthenticationResult == nil {
-		return shared.ErrorResponse(401, "No authentication result returned.")
+		return ErrorResponse(401, "No authentication result returned.")
 	}
 
 	// Build a JSON response with the tokens
@@ -280,13 +279,13 @@ func HandleRefresh(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 	// Get refresh token from Authorization header
 	authHeader := request.Headers["Authorization"]
 	if authHeader == "" {
-		return shared.ErrorResponse(401, "No Authorization header provided")
+		return ErrorResponse(401, "No Authorization header provided")
 	}
 
 	// Extract token from "Bearer <token>"
 	parts := strings.Split(authHeader, " ")
 	if len(parts) != 2 || parts[0] != "Bearer" {
-		return shared.ErrorResponse(401, "Invalid Authorization header format")
+		return ErrorResponse(401, "Invalid Authorization header format")
 	}
 	refreshToken := parts[1]
 
@@ -301,11 +300,11 @@ func HandleRefresh(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 
 	output, err := cip.InitiateAuth(input)
 	if err != nil {
-		return shared.ErrorResponse(401, fmt.Sprintf("Refresh token error: %v", err))
+		return ErrorResponse(401, fmt.Sprintf("Refresh token error: %v", err))
 	}
 
 	if output.AuthenticationResult == nil {
-		return shared.ErrorResponse(401, "No authentication result returned")
+		return ErrorResponse(401, "No authentication result returned")
 	}
 
 	// Build a JSON response with the new tokens
@@ -318,5 +317,37 @@ func HandleRefresh(request events.APIGatewayProxyRequest) events.APIGatewayProxy
 	return events.APIGatewayProxyResponse{
 		StatusCode: 200,
 		Body:       string(body),
+	}
+}
+
+// ErrorResponse is a helper to generate an APIGatewayProxyResponse with a given status and message.
+func ErrorResponse(status int, message string) events.APIGatewayProxyResponse {
+	body, _ := json.Marshal(map[string]string{
+		"error": message,
+	})
+	return events.APIGatewayProxyResponse{
+		StatusCode: status,
+		Headers: map[string]string{
+			"Content-Type":                 "application/json",
+			"Access-Control-Allow-Origin":  "*",
+			"Access-Control-Allow-Methods": "OPTIONS,POST,GET,PUT,DELETE",
+			"Access-Control-Allow-Headers": "Content-Type,Authorization",
+		},
+		Body: string(body),
+	}
+}
+
+// SuccessResponse is a helper to generate an APIGatewayProxyResponse with a given status and body.
+func SuccessResponse(status int, body interface{}) events.APIGatewayProxyResponse {
+	jsonBody, _ := json.Marshal(body)
+	return events.APIGatewayProxyResponse{
+		StatusCode: status,
+		Headers: map[string]string{
+			"Content-Type":                 "application/json",
+			"Access-Control-Allow-Origin":  "*",
+			"Access-Control-Allow-Methods": "OPTIONS,POST,GET,PUT,DELETE",
+			"Access-Control-Allow-Headers": "Content-Type,Authorization",
+		},
+		Body: string(jsonBody),
 	}
 }
