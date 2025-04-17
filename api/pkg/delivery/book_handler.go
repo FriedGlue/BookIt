@@ -3,6 +3,7 @@ package delivery
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/FriedGlue/BookIt/api/pkg/usecase"
@@ -78,4 +79,29 @@ func (h *BookHandler) DeleteBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *BookHandler) SearchBooks(w http.ResponseWriter, r *http.Request) {
+	params := map[string]string{
+		"isbn":  r.URL.Query().Get("isbn"),
+		"title": r.URL.Query().Get("title"),
+	}
+
+	// Log search parameters
+	log.Printf("SearchBooks called with params: %v", params)
+
+	books, err := h.svc.Search(r.Context(), params)
+	if err != nil {
+		log.Printf("Search error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Log search results
+	log.Printf("Search returned %d books", len(books))
+	if len(books) > 0 {
+		log.Printf("First book: %v", books[0])
+	}
+
+	json.NewEncoder(w).Encode(books)
 }

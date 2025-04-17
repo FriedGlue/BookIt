@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -90,11 +91,21 @@ func (s *bookSvc) Delete(ctx context.Context, id string) error {
 }
 
 func (s *bookSvc) Search(ctx context.Context, params map[string]string) ([]models.Book, error) {
+	log.Printf("Book service Search called with params: %v", params)
+
 	if isbn := params["isbn"]; isbn != "" {
-		return s.repo.SearchByISBN(ctx, isbn)
+		log.Printf("Searching by ISBN: %s", isbn)
+		books, err := s.repo.SearchByISBN(ctx, isbn)
+		log.Printf("ISBN search returned %d books, error: %v", len(books), err)
+		return books, err
 	}
-	if q := params["q"]; q != "" {
-		return s.repo.SearchByTitle(ctx, q)
+	if title := params["title"]; title != "" {
+		log.Printf("Searching by title: %s", title)
+		books, err := s.repo.SearchByTitle(ctx, title)
+		log.Printf("Title search returned %d books, error: %v", len(books), err)
+		return books, err
 	}
+
+	log.Printf("No search parameters provided")
 	return nil, nil
 }

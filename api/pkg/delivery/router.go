@@ -47,6 +47,9 @@ func NewRouter(
 	r.Put("/books/{bookId}", bookHandler.UpdateBook)
 	r.Delete("/books/{bookId}", bookHandler.DeleteBook)
 
+	// Book Search
+	r.Get("/books/search", bookHandler.SearchBooks)
+
 	// Currently Reading
 	crHandler := NewCurrentlyReadingHandler(cr)
 	r.Post("/currently-reading", crHandler.AddToCurrentlyReading)

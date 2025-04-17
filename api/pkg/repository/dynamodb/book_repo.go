@@ -4,7 +4,7 @@ package dynamodb
 import (
 	"context"
 	"errors"
-	"strings"
+	"log"
 
 	"github.com/FriedGlue/BookIt/api/pkg/models"
 	"github.com/FriedGlue/BookIt/api/pkg/usecase"
@@ -95,21 +95,50 @@ func (r *bookRepo) SearchByISBN(ctx context.Context, isbn string) ([]models.Book
 }
 
 func (r *bookRepo) SearchByTitle(ctx context.Context, q string) ([]models.Book, error) {
-	expr, _ := expression.NewBuilder().WithFilter(
-		expression.Contains(expression.Name("Title"), strings.ToLower(q)),
+	log.Printf("DynamoDB SearchByTitle called with query: '%s'", q)
+
+	// Create a more flexible search expression that checks both title fields
+	// Use OR condition to match either regular title or lowercase title
+	// Use begins_with for more flexible matching
+	expr, err := expression.NewBuilder().WithFilter(
+		expression.Or(
+			expression.Contains(expression.Name("title"), q),
+			expression.Contains(expression.Name("titleLowercase"), q),
+			expression.BeginsWith(expression.Name("title"), q),
+			expression.BeginsWith(expression.Name("titleLowercase"), q),
+		),
 	).Build()
-	out, err := r.db.ScanWithContext(ctx, &dynamodb.ScanInput{
+
+	if err != nil {
+		log.Printf("Error building expression: %v", err)
+		return nil, err
+	}
+
+	input := &dynamodb.ScanInput{
 		TableName:                 aws.String(r.tableName),
 		FilterExpression:          expr.Filter(),
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
-	})
+	}
+	log.Printf("DynamoDB scan input: %v", input)
+
+	out, err := r.db.ScanWithContext(ctx, input)
 	if err != nil {
+		log.Printf("DynamoDB scan error: %v", err)
 		return nil, err
 	}
+
+	log.Printf("DynamoDB scan returned %d items", len(out.Items))
+	if len(out.Items) > 0 {
+		log.Printf("First item raw: %v", out.Items[0])
+	}
+
 	var books []models.Book
 	if err := dynamodbattribute.UnmarshalListOfMaps(out.Items, &books); err != nil {
+		log.Printf("Error unmarshaling items: %v", err)
 		return nil, err
 	}
+
+	log.Printf("Returning %d books from title search", len(books))
 	return books, nil
 }
