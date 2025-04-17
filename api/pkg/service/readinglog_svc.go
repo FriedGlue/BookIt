@@ -32,12 +32,11 @@ func (s *readingLogSvc) Create(ctx context.Context, userID string, entry models.
 		return err
 	}
 	entry.Id = fmt.Sprintf("%d", time.Now().UnixNano())
-	entry.Date = time.Now().Format(time.RFC3339)
 	p.ReadingLog = append(p.ReadingLog, entry)
 	return s.repo.SaveProfile(ctx, p)
 }
 
-func (s *readingLogSvc) Update(ctx context.Context, userID, entryID string, pagesRead int, notes string) error {
+func (s *readingLogSvc) Update(ctx context.Context, userID, entryID string, pagesRead int, notes string, date string) error {
 	p, err := s.repo.LoadProfile(ctx, userID)
 	if err != nil {
 		return err
@@ -46,6 +45,7 @@ func (s *readingLogSvc) Update(ctx context.Context, userID, entryID string, page
 		if p.ReadingLog[i].Id == entryID {
 			p.ReadingLog[i].PagesRead = pagesRead
 			p.ReadingLog[i].Notes = notes
+			p.ReadingLog[i].Date = date
 			break
 		}
 	}

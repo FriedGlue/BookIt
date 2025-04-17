@@ -59,7 +59,7 @@ func (s *currentlyReadingSvc) AddToCurrentlyReading(ctx context.Context, userID 
 	return s.repo.SaveProfile(ctx, p)
 }
 
-func (s *currentlyReadingSvc) UpdateProgress(ctx context.Context, userID, bookID string, currentPage int, notes string) error {
+func (s *currentlyReadingSvc) UpdateProgress(ctx context.Context, userID, bookID string, currentPage int, notes string, date string) error {
 	p, err := s.repo.LoadProfile(ctx, userID)
 	if err != nil {
 		return err
@@ -79,11 +79,12 @@ func (s *currentlyReadingSvc) UpdateProgress(ctx context.Context, userID, bookID
 	if !found {
 		return errors.New("book not found in currently reading list")
 	}
+
 	logEntry := models.ReadingLogItem{
 		BookID:    bookID,
 		PagesRead: currentPage - lastRead,
 		Notes:     notes,
-		Date:      time.Now().Format(time.RFC3339),
+		Date:      date,
 	}
 	if err := s.logService.Create(ctx, userID, logEntry); err != nil {
 		return err

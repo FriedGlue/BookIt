@@ -34,23 +34,23 @@ func NewRouter(
 ) *Router {
 	r := chi.NewRouter()
 
-	// Books CRUD
-	bookHandler := NewBookHandler(b)
-	r.Get("/books", bookHandler.GetBooks)
-	r.Get("/books/{bookId}", bookHandler.GetBooks)
-	r.Post("/books", bookHandler.CreateBook)
-	r.Put("/books/{bookId}", bookHandler.UpdateBook)
-	r.Delete("/books/{bookId}", bookHandler.DeleteBook)
-
 	// Profile routes
 	profileHandler := NewProfileHandler(p)
 	r.Get("/profile", profileHandler.GetProfile)
 	r.Put("/profile", profileHandler.UpdateProfile)
 
+	// Books CRUD
+	bookHandler := NewBookHandler(b)
+	r.Post("/books", bookHandler.CreateBook)
+	r.Get("/books", bookHandler.GetBooks)
+	r.Get("/books/{bookId}", bookHandler.GetBooks)
+	r.Put("/books/{bookId}", bookHandler.UpdateBook)
+	r.Delete("/books/{bookId}", bookHandler.DeleteBook)
+
 	// Currently Reading
 	crHandler := NewCurrentlyReadingHandler(cr)
-	r.Get("/currently-reading", crHandler.GetCurrentlyReading)
 	r.Post("/currently-reading", crHandler.AddToCurrentlyReading)
+	r.Get("/currently-reading", crHandler.GetCurrentlyReading)
 	r.Put("/currently-reading", crHandler.UpdateCurrentlyReading)
 	r.Delete("/currently-reading", crHandler.RemoveFromCurrentlyReading)
 
@@ -70,13 +70,14 @@ func NewRouter(
 
 	// Reading Challenges
 	challengeHandler := NewChallengeHandler(ch)
-	r.Get("/challenges", challengeHandler.GetChallenges)
 	r.Post("/challenges", challengeHandler.CreateChallenge)
+	r.Get("/challenges", challengeHandler.GetChallenges)
 	r.Put("/challenges/{id}", challengeHandler.UpdateChallenge)
 	r.Delete("/challenges/{id}", challengeHandler.DeleteChallenge)
 
 	// Reading Log
 	logHandler := NewReadingLogHandler(l)
+	r.Post("/reading-log", logHandler.CreateReadingLogItem)
 	r.Get("/reading-log", logHandler.ListReadingLog)
 	r.Put("/reading-log", logHandler.UpdateReadingLogItem)
 	r.Delete("/reading-log", logHandler.DeleteReadingLogItem)

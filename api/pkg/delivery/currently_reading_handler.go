@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/FriedGlue/BookIt/api/pkg/models"
 	"github.com/FriedGlue/BookIt/api/pkg/usecase"
@@ -86,13 +87,18 @@ func (h *CurrentlyReadingHandler) UpdateCurrentlyReading(w http.ResponseWriter, 
 		BookID      string `json:"bookId"`
 		CurrentPage int    `json:"currentPage"`
 		Notes       string `json:"notes"`
+		Date        string `json:"date"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.svc.UpdateProgress(r.Context(), userID, payload.BookID, payload.CurrentPage, payload.Notes); err != nil {
+	if payload.Date == "" {
+		payload.Date = time.Now().Format(time.RFC3339)
+	}
+
+	if err := h.svc.UpdateProgress(r.Context(), userID, payload.BookID, payload.CurrentPage, payload.Notes, payload.Date); err != nil {
 		log.Printf("Error updating reading progress for user %s, book %s: %v", userID, payload.BookID, err)
 		http.Error(w, "Error updating progress: "+err.Error(), http.StatusBadRequest)
 		return

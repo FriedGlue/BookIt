@@ -11,7 +11,7 @@ import (
 type CurrentlyReadingService interface {
 	GetCurrentlyReading(ctx context.Context, userID string) ([]models.CurrentlyReadingItem, error)
 	AddToCurrentlyReading(ctx context.Context, userID string, book models.Book) error
-	UpdateProgress(ctx context.Context, userID, bookID string, currentPage int, notes string) error
+	UpdateProgress(ctx context.Context, userID, bookID string, currentPage int, notes string, date string) error
 	RemoveFromCurrentlyReading(ctx context.Context, userID, bookID string) error
 	StartReading(ctx context.Context, userID, bookID, fromList string) error
 	FinishReading(ctx context.Context, userID, bookID string) error

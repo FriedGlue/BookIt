@@ -107,6 +107,27 @@ Each domain has a dedicated service and handler:
 └─────────────────┘     └─────────────────┘     
 ```
 
+**Key Service Responsibilities:**
+
+- **ProfileService**: Provides basic CRUD operations for profile data without specialized business logic. Acts as a data access layer for the profile entity, which is the root-level entity containing reading lists, currently reading data, reading logs, and challenges.
+
+- **BookService**: Manages book metadata and provides book-related business logic.
+
+- **Specialized Services**: Each specialized service (CurrentlyReadingService, ReadingListService, etc.) implements business logic specific to its domain and uses ProfileService to access/modify the profile data when needed.
+
+**Data Flow for Profile Updates:**
+
+```mermaid
+graph TD
+    A[Specialized Handler] --> B[Specialized Service]
+    B --> C[Business Logic]
+    C --> D[ProfileService]
+    D --> E[Repository]
+    E --> F[Database]
+```
+
+The relationship is hierarchical - specialized services may use ProfileService to persist their data, but ProfileService is not aware of the specialized services and only provides basic data access operations.
+
 ### Database Structure
 
 BookIt uses two main DynamoDB tables:
@@ -126,48 +147,6 @@ BookIt uses two main DynamoDB tables:
      - `lists`: All reading lists (to-be-read, read, custom)
      - `readingLog`: Reading activity history
      - `challenges`: Reading challenges
-
-## API Endpoints
-
-### Books
-
-- `GET /books`: List all books
-- `GET /books/{bookId}`: Get a specific book
-- `POST /books`: Create a new book
-- `PUT /books/{bookId}`: Update a book
-- `DELETE /books/{bookId}`: Delete a book
-
-### Profile
-
-- `GET /profile`: Get user profile
-- `PUT /profile`: Update user profile
-
-### Currently Reading
-
-- `GET /currently-reading`: Get current reading list
-- `POST /currently-reading`: Add a book to currently reading
-- `PUT /currently-reading`: Update reading progress
-- `DELETE /currently-reading`: Remove from currently reading
-
-### Reading Lists
-
-- `GET /list`: Get all lists
-- `POST /list`: Add book to a list
-- `DELETE /list?listName=`: Delete a list
-- `DELETE /list?listType=&bookId=`: Remove a book from a list
-
-### Reading Challenges
-
-- `GET /challenges`: Get all challenges
-- `POST /challenges`: Create a new challenge
-- `PUT /challenges/{id}`: Update a challenge
-- `DELETE /challenges/{id}`: Delete a challenge
-
-### Reading Log
-
-- `GET /reading-log`: Get reading log
-- `PUT /reading-log`: Update a reading log entry
-- `DELETE /reading-log`: Delete a reading log entry
 
 ## Deployment
 

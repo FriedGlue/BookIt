@@ -25,7 +25,12 @@ func NewBookRepo(sess *session.Session, table string) usecase.BookRepo {
 }
 
 func (r *bookRepo) Load(ctx context.Context, id string) (models.Book, error) {
-	input := &dynamodb.GetItemInput{TableName: aws.String(r.tableName), Key: map[string]*dynamodb.AttributeValue{"ID": {S: aws.String(id)}}}
+	input := &dynamodb.GetItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]*dynamodb.AttributeValue{
+			"BookID": {S: aws.String(id)},
+		},
+	}
 	res, err := r.db.GetItemWithContext(ctx, input)
 	if err != nil {
 		return models.Book{}, err
@@ -62,7 +67,12 @@ func (r *bookRepo) Save(ctx context.Context, b models.Book) error {
 }
 
 func (r *bookRepo) Delete(ctx context.Context, id string) error {
-	_, err := r.db.DeleteItemWithContext(ctx, &dynamodb.DeleteItemInput{TableName: aws.String(r.tableName), Key: map[string]*dynamodb.AttributeValue{"ID": {S: aws.String(id)}}})
+	_, err := r.db.DeleteItemWithContext(ctx, &dynamodb.DeleteItemInput{
+		TableName: aws.String(r.tableName),
+		Key: map[string]*dynamodb.AttributeValue{
+			"BookID": {S: aws.String(id)},
+		},
+	})
 	return err
 }
 
@@ -86,7 +96,7 @@ func (r *bookRepo) SearchByISBN(ctx context.Context, isbn string) ([]models.Book
 
 func (r *bookRepo) SearchByTitle(ctx context.Context, q string) ([]models.Book, error) {
 	expr, _ := expression.NewBuilder().WithFilter(
-		expression.Contains(expression.Name("TitleLowercase"), strings.ToLower(q)),
+		expression.Contains(expression.Name("Title"), strings.ToLower(q)),
 	).Build()
 	out, err := r.db.ScanWithContext(ctx, &dynamodb.ScanInput{
 		TableName:                 aws.String(r.tableName),

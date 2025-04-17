@@ -11,6 +11,6 @@ import (
 type ReadingLogService interface {
 	List(ctx context.Context, userID string) ([]models.ReadingLogItem, error)
 	Create(ctx context.Context, userID string, entry models.ReadingLogItem) error
-	Update(ctx context.Context, userID, entryID string, pagesRead int, notes string) error
+	Update(ctx context.Context, userID, entryID string, pagesRead int, notes string, date string) error
 	Delete(ctx context.Context, userID, entryID string) error
 }
